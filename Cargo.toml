@@ -416,6 +416,7 @@ reth-trie-db = { path = "crates/trie/db" }
 reth-trie-parallel = { path = "crates/trie/parallel" }
 reth-trie-sparse = { path = "crates/trie/sparse" }
 reth-zstd-compressors = { path = "crates/storage/zstd-compressors", default-features = false }
+rome-sdk = { path = "../rome-sdk/rome-sdk"}
 
 # revm
 revm = { version = "19.3.0", default-features = false }
@@ -645,3 +646,12 @@ snmalloc-rs = { version = "0.3.7", features = ["build_cc"] }
 # op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", rev = "debfc29" }
 # op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", rev = "debfc29" }
 # op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", rev = "debfc29" }
+
+[patch.crates-io.aes-gcm-siv]
+git = "https://github.com/RustCrypto/AEADs"
+rev = "6105d7a5591aefa646a95d12b5e8d3f55a9214ef"
+
+[patch.crates-io.curve25519-dalek]
+git = "https://github.com/solana-labs/curve25519-dalek.git"
+rev = "c14774464c4d38de553c6ef2f48a10982c1b4801"
+

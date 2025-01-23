@@ -22,6 +22,7 @@ use alloy_primitives::{Address, Bytes, B256, U256};
 use reth_primitives_traits::{BlockHeader, SignedTransaction};
 use revm::{Database, DatabaseCommit, GetInspector};
 use revm_primitives::{BlockEnv, CfgEnvWithHandlerCfg, EVMError, ResultAndState, SpecId, TxEnv};
+use rome_sdk::rome_solana::tower::SolanaTower;
 
 pub mod either;
 /// EVM environment configuration.
