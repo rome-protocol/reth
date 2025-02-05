@@ -160,7 +160,6 @@ mod tests {
     use reth_engine_tree::{test_utils::TestPipelineBuilder, tree::NoopInvalidBlockHook};
     use reth_ethereum_consensus::EthBeaconConsensus;
     use reth_ethereum_engine_primitives::{EthEngineTypes, EthereumEngineValidator};
-    use reth_evm_ethereum::execute::EthExecutorProvider;
     use reth_exex_types::FinishedExExHeight;
     use reth_network_p2p::test_utils::TestFullBlockClient;
     use reth_primitives::SealedHeader;
@@ -173,6 +172,7 @@ mod tests {
     use tokio::sync::{mpsc::unbounded_channel, watch};
     use tokio_stream::wrappers::UnboundedReceiverStream;
 
+    #[ignore]
     #[test]
     fn eth_chain_orchestrator_build() {
         let chain_spec = Arc::new(

@@ -9563,6 +9563,7 @@ dependencies = [
  "reth-revm",
  "reth-testing-utils",
  "revm-primitives",
+ "rome-sdk",
  "secp256k1",
  "serde_json",
 ]

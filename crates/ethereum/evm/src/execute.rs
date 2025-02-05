@@ -7,8 +7,8 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{BlockHeader, Transaction};
 use alloy_eips::{eip6110, eip7685::Requests};
-use core::fmt::Display;
-use reth_chainspec::{ChainSpec, EthereumHardfork, EthereumHardforks, MAINNET};
+use core::{fmt::Display, str::FromStr};
+use reth_chainspec::{ChainSpec, EthChainSpec, EthereumHardfork, EthereumHardforks, MAINNET};
 use reth_consensus::ConsensusError;
 use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::{
@@ -28,32 +28,49 @@ use revm_primitives::{
     db::{Database, DatabaseCommit},
     ResultAndState,
 };
+use rome_sdk::{rome_evm_client::Payer, rome_solana::{tower::SolanaTower, types::SyncAtomicRpcClient}, Rome, RomeConfig};
+use rome_sdk::rome_evm_client::tx::TxBuilder;
+use rome_sdk::Pubkey;
 
 /// Factory for [`EthExecutionStrategy`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EthExecutionStrategyFactory<EvmConfig = EthEvmConfig> {
     /// The chainspec
     chain_spec: Arc<ChainSpec>,
     /// How to create an EVM.
     evm_config: EvmConfig,
+    /// Transaction builder 
+    tx_builder: TxBuilder,
+    /// Rome Config for Solana
+    rome_config: RomeConfig,
 }
 
-impl EthExecutionStrategyFactory {
-    /// Creates a new default ethereum executor strategy factory.
-    pub fn ethereum(chain_spec: Arc<ChainSpec>) -> Self {
-        Self::new(chain_spec.clone(), EthEvmConfig::new(chain_spec))
-    }
+// impl EthExecutionStrategyFactory {
+//     /// Creates a new default ethereum executor strategy factory.
+//     pub fn ethereum(chain_spec: Arc<ChainSpec>) -> Self {
+//         Self::new(chain_spec.clone(), EthEvmConfig::new(chain_spec),)
+//     }
 
-    /// Returns a new factory for the mainnet.
-    pub fn mainnet() -> Self {
-        Self::ethereum(MAINNET.clone())
-    }
-}
+//     /// Returns a new factory for the mainnet.
+//     pub fn mainnet() -> Self {
+//         Self::ethereum(MAINNET.clone())
+//     }
+// }
 
 impl<EvmConfig> EthExecutionStrategyFactory<EvmConfig> {
     /// Creates a new executor strategy factory.
-    pub const fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig) -> Self {
-        Self { chain_spec, evm_config }
+    pub async fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig, rome_config: RomeConfig) -> Self {
+        let payers = Payer::from_config_list(&rome_config.payers).await.unwrap();
+        let sync_rpc_client: SyncAtomicRpcClient = Arc::new(rome_config.solana_config.clone().into());
+        let pubkey = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap(); // TODO
+        let tx_builder = TxBuilder::new(
+            chain_spec.chain_id(),
+            pubkey,
+            sync_rpc_client,
+            payers
+        );
+
+        Self { chain_spec, evm_config, rome_config, tx_builder }
     }
 }
 
@@ -165,6 +182,8 @@ where
                 }
                 .into())
             }
+
+
 
             let mut tx_env = self.evm_config.tx_env(transaction, *sender);
 
@@ -279,24 +298,24 @@ where
     }
 }
 
-/// Helper type with backwards compatible methods to obtain Ethereum executor
-/// providers.
-#[derive(Debug)]
-pub struct EthExecutorProvider;
+// /// Helper type with backwards compatible methods to obtain Ethereum executor
+// /// providers.
+// #[derive(Debug)]
+// pub struct EthExecutorProvider;
 
-impl EthExecutorProvider {
-    /// Creates a new default ethereum executor provider.
-    pub fn ethereum(
-        chain_spec: Arc<ChainSpec>,
-    ) -> BasicBlockExecutorProvider<EthExecutionStrategyFactory> {
-        BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::ethereum(chain_spec))
-    }
+// impl EthExecutorProvider {
+//     /// Creates a new default ethereum executor provider.
+//     pub fn ethereum(
+//         chain_spec: Arc<ChainSpec>,
+//     ) -> BasicBlockExecutorProvider<EthExecutionStrategyFactory> {
+//         BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::ethereum(chain_spec))
+//     }
 
-    /// Returns a new provider for the mainnet.
-    pub fn mainnet() -> BasicBlockExecutorProvider<EthExecutionStrategyFactory> {
-        BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::mainnet())
-    }
-}
+//     /// Returns a new provider for the mainnet.
+//     pub fn mainnet() -> BasicBlockExecutorProvider<EthExecutionStrategyFactory> {
+//         BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::mainnet())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

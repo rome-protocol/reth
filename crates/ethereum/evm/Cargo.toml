@@ -24,6 +24,9 @@ reth-consensus.workspace = true
 revm-primitives.workspace = true
 reth-primitives-traits.workspace = true
 
+# Solana
+rome-sdk.workspace = true
+
 # Alloy
 alloy-primitives.workspace = true
 alloy-eips.workspace = true
