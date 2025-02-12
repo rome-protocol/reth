@@ -11,9 +11,7 @@ use reth_rpc_builder::{
 };
 use reth_rpc_server_types::RethRpcModule;
 
-use crate::utils::{
-    launch_http, launch_http_ws_same_port, launch_ws, test_address, test_rpc_builder,
-};
+use crate::utils::{launch_http, launch_http_ws_same_port, launch_ws, test_address}; // test_rpc_builder};
 
 fn is_addr_in_use_kind(err: &RpcError, kind: ServerKind) -> bool {
     match err {

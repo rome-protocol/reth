@@ -587,7 +587,7 @@ pub struct BuilderContext<Node: FullNodeTypes> {
     /// The executor of the node.
     pub(crate) executor: TaskExecutor,
     /// Config container
-    pub(crate) config_container: WithConfigs<<Node::Types as NodeTypes>::ChainSpec>,
+    pub config_container: WithConfigs<<Node::Types as NodeTypes>::ChainSpec>,
 }
 
 impl<Node: FullNodeTypes> BuilderContext<Node> {

@@ -128,26 +128,26 @@ pub async fn launch_http_ws_same_port(modules: impl Into<RpcModuleSelection>) ->
         .unwrap()
 }
 
-/// Returns an [`RpcModuleBuilder`] with testing components.
-pub fn test_rpc_builder() -> RpcModuleBuilder<
-    NoopProvider,
-    TestPool,
-    NoopNetwork,
-    TokioTaskExecutor,
-    TestCanonStateSubscriptions,
-    EthEvmConfig,
-    BasicBlockExecutorProvider<EthExecutionStrategyFactory>,
-    NoopConsensus,
-> {
-    RpcModuleBuilder::default()
-        .with_provider(NoopProvider::default())
-        .with_pool(TestPoolBuilder::default().into())
-        .with_network(NoopNetwork::default())
-        .with_executor(TokioTaskExecutor::default())
-        .with_events(TestCanonStateSubscriptions::default())
-        .with_evm_config(EthEvmConfig::new(MAINNET.clone()))
-        .with_block_executor(
-            BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::mainnet()),
-        )
-        .with_consensus(NoopConsensus::default())
-}
+// /// Returns an [`RpcModuleBuilder`] with testing components.
+// pub fn test_rpc_builder() -> RpcModuleBuilder<
+//     NoopProvider,
+//     TestPool,
+//     NoopNetwork,
+//     TokioTaskExecutor,
+//     TestCanonStateSubscriptions,
+//     EthEvmConfig,
+//     BasicBlockExecutorProvider<EthExecutionStrategyFactory>,
+//     NoopConsensus,
+// > {
+//     RpcModuleBuilder::default()
+//         .with_provider(NoopProvider::default())
+//         .with_pool(TestPoolBuilder::default().into())
+//         .with_network(NoopNetwork::default())
+//         .with_executor(TokioTaskExecutor::default())
+//         .with_events(TestCanonStateSubscriptions::default())
+//         .with_evm_config(EthEvmConfig::new(MAINNET.clone()))
+//         // .with_block_executor(
+//         //     BasicBlockExecutorProvider::new(EthExecutionStrategyFactory::mainnet()),
+//         // )
+//         .with_consensus(NoopConsensus::default())
+// }

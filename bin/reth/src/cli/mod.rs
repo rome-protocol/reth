@@ -162,19 +162,19 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>, Ext: clap::Args + fmt::Debug> Cl
             Commands::InitState(command) => {
                 runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode>())
             }
-            Commands::Import(command) => runner.run_blocking_until_ctrl_c(
-                command.execute::<EthereumNode, _, _>(EthExecutorProvider::ethereum),
-            ),
+            // Commands::Import(command) => runner.run_blocking_until_ctrl_c(
+            //     command.execute::<EthereumNode, _, _>(EthExecutorProvider::ethereum),
+            // ),
             Commands::DumpGenesis(command) => runner.run_blocking_until_ctrl_c(command.execute()),
             Commands::Db(command) => {
                 runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode>())
             }
-            Commands::Stage(command) => runner.run_command_until_exit(|ctx| {
-                command.execute::<EthereumNode, _, _, EthNetworkPrimitives>(
-                    ctx,
-                    EthExecutorProvider::ethereum,
-                )
-            }),
+            // Commands::Stage(command) => runner.run_command_until_exit(|ctx| {
+            //     command.execute::<EthereumNode, _, _, EthNetworkPrimitives>(
+            //         ctx,
+            //         EthExecutorProvider::ethereum,
+            //     )
+            // }),
             Commands::P2P(command) => {
                 runner.run_until_ctrl_c(command.execute::<EthNetworkPrimitives>())
             }
@@ -188,6 +188,8 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>, Ext: clap::Args + fmt::Debug> Cl
                 runner.run_command_until_exit(|ctx| command.execute::<EthereumNode>(ctx))
             }
             Commands::Prune(command) => runner.run_until_ctrl_c(command.execute::<EthereumNode>()),
+            Commands::Import(import_command) => todo!(),
+            Commands::Stage(command) => todo!(),
         }
     }
 

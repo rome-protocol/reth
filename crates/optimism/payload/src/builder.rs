@@ -317,13 +317,13 @@ where
         if !ctx.attributes().no_tx_pool {
             let best_txs = best(ctx.best_transaction_attributes());
             if ctx.execute_best_transactions(&mut info, state, best_txs)?.is_some() {
-                return Ok(BuildOutcomeKind::Cancelled)
+                return Ok(BuildOutcomeKind::Cancelled);
             }
 
             // check if the new payload is even more valuable
             if !ctx.is_better_payload(info.total_fees) {
                 // can skip building the block
-                return Ok(BuildOutcomeKind::Aborted { fees: info.total_fees })
+                return Ok(BuildOutcomeKind::Aborted { fees: info.total_fees });
             }
         }
 
@@ -748,7 +748,7 @@ where
             if sequencer_tx.value().is_eip4844() {
                 return Err(PayloadBuilderError::other(
                     OpPayloadBuilderError::BlobTransactionRejected,
-                ))
+                ));
             }
 
             // Convert the transaction to a [RecoveredTx]. This is
@@ -786,11 +786,11 @@ where
                     match err {
                         EVMError::Transaction(err) => {
                             trace!(target: "payload_builder", %err, ?sequencer_tx, "Error in sequencer transaction, skipping.");
-                            continue
+                            continue;
                         }
                         err => {
                             // this is an error that we should treat as fatal for this attempt
-                            return Err(PayloadBuilderError::EvmExecutionError(err))
+                            return Err(PayloadBuilderError::EvmExecutionError(err));
                         }
                     }
                 }
@@ -859,18 +859,18 @@ where
                 // invalid which also removes all dependent transaction from
                 // the iterator before we can continue
                 best_txs.mark_invalid(tx.signer(), tx.nonce());
-                continue
+                continue;
             }
 
             // A sequencer's block should never contain blob or deposit transactions from the pool.
             if tx.is_eip4844() || tx.tx_type() == OpTxType::Deposit {
                 best_txs.mark_invalid(tx.signer(), tx.nonce());
-                continue
+                continue;
             }
 
             // check if the job was cancelled, if so we can exit early
             if self.cancel.is_cancelled() {
-                return Ok(Some(()))
+                return Ok(Some(()));
             }
 
             // Configure the environment for the tx.
@@ -891,11 +891,11 @@ where
                                 best_txs.mark_invalid(tx.signer(), tx.nonce());
                             }
 
-                            continue
+                            continue;
                         }
                         err => {
                             // this is an error that we should treat as fatal for this attempt
-                            return Err(PayloadBuilderError::EvmExecutionError(err))
+                            return Err(PayloadBuilderError::EvmExecutionError(err));
                         }
                     }
                 }

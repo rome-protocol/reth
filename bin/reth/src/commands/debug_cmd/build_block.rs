@@ -42,6 +42,7 @@ use reth_transaction_pool::{
 };
 use reth_trie::StateRoot;
 use reth_trie_db::DatabaseStateRoot;
+use rome_sdk::RomeConfig;
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 use tracing::*;
 
@@ -243,11 +244,14 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
                 consensus.validate_block_pre_execution(block)?;
 
                 let block_with_senders = block.clone().try_recover().unwrap();
+                let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
 
                 let state_provider = blockchain_db.latest()?;
                 let db = StateProviderDatabase::new(&state_provider);
                 let executor =
-                    EthExecutorProvider::ethereum(provider_factory.chain_spec()).executor(db);
+                    EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config)
+                        .await
+                        .executor(db);
 
                 let block_execution_output = executor.execute(&block_with_senders)?;
                 let execution_outcome =

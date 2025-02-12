@@ -1468,7 +1468,7 @@ impl TryFrom<Recovered<TransactionSigned>> for EthPooledTransaction {
                 // unsupported transaction type
                 return Err(TryFromRecoveredTransactionError::UnsupportedTransactionType(
                     unsupported,
-                ))
+                ));
             }
         };
 
@@ -1608,7 +1608,7 @@ impl<Tx: PoolTransaction> NewSubpoolTransactionStream<Tx> {
             match self.st.try_recv() {
                 Ok(event) => {
                     if event.subpool == self.subpool {
-                        return Ok(event)
+                        return Ok(event);
                     }
                 }
                 Err(e) => return Err(e),
@@ -1625,7 +1625,7 @@ impl<Tx: PoolTransaction> Stream for NewSubpoolTransactionStream<Tx> {
             match ready!(self.st.poll_recv(cx)) {
                 Some(event) => {
                     if event.subpool == self.subpool {
-                        return Poll::Ready(Some(event))
+                        return Poll::Ready(Some(event));
                     }
                 }
                 None => return Poll::Ready(None),

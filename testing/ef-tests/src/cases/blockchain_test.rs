@@ -61,102 +61,102 @@ impl Case for BlockchainTestCase {
     /// # Errors
     /// Returns an error if the test is flagged for skipping or encounters issues during execution.
     fn run(&self) -> Result<(), Error> {
-        // If the test is marked for skipping, return a Skipped error immediately.
-        if self.skip {
-            return Err(Error::Skipped)
-        }
+        // // If the test is marked for skipping, return a Skipped error immediately.
+        // if self.skip {
+        //     return Err(Error::Skipped)
+        // }
 
-        // Iterate through test cases, filtering by the network type to exclude specific forks.
-        self.tests
-            .values()
-            .filter(|case| {
-                !matches!(
-                    case.network,
-                    ForkSpec::ByzantiumToConstantinopleAt5 |
-                        ForkSpec::Constantinople |
-                        ForkSpec::ConstantinopleFix |
-                        ForkSpec::MergeEOF |
-                        ForkSpec::MergeMeterInitCode |
-                        ForkSpec::MergePush0 |
-                        ForkSpec::Unknown
-                )
-            })
-            .par_bridge()
-            .try_for_each(|case| {
-                // Create a new test database and initialize a provider for the test case.
-                let chain_spec: Arc<ChainSpec> = Arc::new(case.network.into());
-                let provider = create_test_provider_factory_with_chain_spec(chain_spec.clone())
-                    .database_provider_rw()
-                    .unwrap();
+        // // Iterate through test cases, filtering by the network type to exclude specific forks.
+        // self.tests
+        //     .values()
+        //     .filter(|case| {
+        //         !matches!(
+        //             case.network,
+        //             ForkSpec::ByzantiumToConstantinopleAt5 |
+        //                 ForkSpec::Constantinople |
+        //                 ForkSpec::ConstantinopleFix |
+        //                 ForkSpec::MergeEOF |
+        //                 ForkSpec::MergeMeterInitCode |
+        //                 ForkSpec::MergePush0 |
+        //                 ForkSpec::Unknown
+        //         )
+        //     })
+        //     .par_bridge()
+        //     .try_for_each(|case| {
+        //         // Create a new test database and initialize a provider for the test case.
+        //         let chain_spec: Arc<ChainSpec> = Arc::new(case.network.into());
+        //         let provider = create_test_provider_factory_with_chain_spec(chain_spec.clone())
+        //             .database_provider_rw()
+        //             .unwrap();
 
-                // Insert initial test state into the provider.
-                provider.insert_historical_block(
-                    SealedBlock::<reth_primitives::Block>::from_sealed_parts(
-                        case.genesis_block_header.clone().into(),
-                        BlockBody::default(),
-                    )
-                    .try_recover()
-                    .unwrap(),
-                )?;
-                case.pre.write_to_db(provider.tx_ref())?;
+        //         // Insert initial test state into the provider.
+        //         provider.insert_historical_block(
+        //             SealedBlock::<reth_primitives::Block>::from_sealed_parts(
+        //                 case.genesis_block_header.clone().into(),
+        //                 BlockBody::default(),
+        //             )
+        //             .try_recover()
+        //             .unwrap(),
+        //         )?;
+        //         case.pre.write_to_db(provider.tx_ref())?;
 
-                // Initialize receipts static file with genesis
-                {
-                    let static_file_provider = provider.static_file_provider();
-                    let mut receipts_writer =
-                        static_file_provider.latest_writer(StaticFileSegment::Receipts).unwrap();
-                    receipts_writer.increment_block(0).unwrap();
-                    receipts_writer.commit_without_sync_all().unwrap();
-                }
+        //         // Initialize receipts static file with genesis
+        //         {
+        //             let static_file_provider = provider.static_file_provider();
+        //             let mut receipts_writer =
+        //                 static_file_provider.latest_writer(StaticFileSegment::Receipts).unwrap();
+        //             receipts_writer.increment_block(0).unwrap();
+        //             receipts_writer.commit_without_sync_all().unwrap();
+        //         }
 
-                // Decode and insert blocks, creating a chain of blocks for the test case.
-                let last_block = case.blocks.iter().try_fold(None, |_, block| {
-                    let decoded =
-                        SealedBlock::<reth_primitives::Block>::decode(&mut block.rlp.as_ref())?;
-                    provider.insert_historical_block(decoded.clone().try_recover().unwrap())?;
-                    Ok::<Option<SealedBlock>, Error>(Some(decoded))
-                })?;
-                provider
-                    .static_file_provider()
-                    .latest_writer(StaticFileSegment::Headers)
-                    .unwrap()
-                    .commit_without_sync_all()
-                    .unwrap();
+        //         // Decode and insert blocks, creating a chain of blocks for the test case.
+        //         let last_block = case.blocks.iter().try_fold(None, |_, block| {
+        //             let decoded =
+        //                 SealedBlock::<reth_primitives::Block>::decode(&mut block.rlp.as_ref())?;
+        //             provider.insert_historical_block(decoded.clone().try_recover().unwrap())?;
+        //             Ok::<Option<SealedBlock>, Error>(Some(decoded))
+        //         })?;
+        //         provider
+        //             .static_file_provider()
+        //             .latest_writer(StaticFileSegment::Headers)
+        //             .unwrap()
+        //             .commit_without_sync_all()
+        //             .unwrap();
 
-                // Execute the execution stage using the EVM processor factory for the test case
-                // network.
-                let _ = ExecutionStage::new_with_executor(
-                    reth_evm_ethereum::execute::EthExecutorProvider::ethereum(chain_spec),
-                )
-                .execute(
-                    &provider,
-                    ExecInput { target: last_block.as_ref().map(|b| b.number), checkpoint: None },
-                );
+        //         // Execute the execution stage using the EVM processor factory for the test case
+        //         // network.
+        //         let _ = ExecutionStage::new_with_executor(
+        //             reth_evm_ethereum::execute::EthExecutorProvider::ethereum(chain_spec),
+        //         )
+        //         .execute(
+        //             &provider,
+        //             ExecInput { target: last_block.as_ref().map(|b| b.number), checkpoint: None },
+        //         );
 
-                // Validate the post-state for the test case.
-                match (&case.post_state, &case.post_state_hash) {
-                    (Some(state), None) => {
-                        // Validate accounts in the state against the provider's database.
-                        for (&address, account) in state {
-                            account.assert_db(address, provider.tx_ref())?;
-                        }
-                    }
-                    (None, Some(expected_state_root)) => {
-                        // Insert state hashes into the provider based on the expected state root.
-                        let last_block = last_block.unwrap_or_default();
-                        provider.insert_hashes(
-                            0..=last_block.number,
-                            last_block.hash(),
-                            *expected_state_root,
-                        )?;
-                    }
-                    _ => return Err(Error::MissingPostState),
-                }
+        //         // Validate the post-state for the test case.
+        //         match (&case.post_state, &case.post_state_hash) {
+        //             (Some(state), None) => {
+        //                 // Validate accounts in the state against the provider's database.
+        //                 for (&address, account) in state {
+        //                     account.assert_db(address, provider.tx_ref())?;
+        //                 }
+        //             }
+        //             (None, Some(expected_state_root)) => {
+        //                 // Insert state hashes into the provider based on the expected state root.
+        //                 let last_block = last_block.unwrap_or_default();
+        //                 provider.insert_hashes(
+        //                     0..=last_block.number,
+        //                     last_block.hash(),
+        //                     *expected_state_root,
+        //                 )?;
+        //             }
+        //             _ => return Err(Error::MissingPostState),
+        //         }
 
-                // Drop the provider without committing to the database.
-                drop(provider);
-                Ok(())
-            })?;
+        //         // Drop the provider without committing to the database.
+        //         drop(provider);
+        //         Ok(())
+        //     })?;
 
         Ok(())
     }

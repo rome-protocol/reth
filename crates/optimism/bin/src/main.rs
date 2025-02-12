@@ -14,42 +14,42 @@ use tracing as _;
 static ALLOC: reth_cli_util::allocator::Allocator = reth_cli_util::allocator::new_allocator();
 
 fn main() {
-    reth_cli_util::sigsegv_handler::install();
+    // reth_cli_util::sigsegv_handler::install();
 
-    // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.
-    if std::env::var_os("RUST_BACKTRACE").is_none() {
-        std::env::set_var("RUST_BACKTRACE", "1");
-    }
+    // // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.
+    // if std::env::var_os("RUST_BACKTRACE").is_none() {
+    //     std::env::set_var("RUST_BACKTRACE", "1");
+    // }
 
-    if let Err(err) =
-        Cli::<OpChainSpecParser, RollupArgs>::parse().run(|builder, rollup_args| async move {
-            let engine_tree_config = TreeConfig::default()
-                .with_persistence_threshold(builder.config().engine.persistence_threshold)
-                .with_memory_block_buffer_target(builder.config().engine.memory_block_buffer_target)
-                .with_state_root_task(builder.config().engine.state_root_task_enabled)
-                .with_always_compare_trie_updates(
-                    builder.config().engine.state_root_task_compare_updates,
-                );
+    // if let Err(err) =
+    //     Cli::<OpChainSpecParser, RollupArgs>::parse().run(|builder, rollup_args| async move {
+    //         let engine_tree_config = TreeConfig::default()
+    //             .with_persistence_threshold(builder.config().engine.persistence_threshold)
+    //             .with_memory_block_buffer_target(builder.config().engine.memory_block_buffer_target)
+    //             .with_state_root_task(builder.config().engine.state_root_task_enabled)
+    //             .with_always_compare_trie_updates(
+    //                 builder.config().engine.state_root_task_compare_updates,
+    //             );
 
-            let op_node = OpNode::new(rollup_args.clone());
-            let handle = builder
-                .with_types_and_provider::<OpNode, BlockchainProvider<_>>()
-                .with_components(op_node.components())
-                .with_add_ons(op_node.add_ons())
-                .launch_with_fn(|builder| {
-                    let launcher = EngineNodeLauncher::new(
-                        builder.task_executor().clone(),
-                        builder.config().datadir(),
-                        engine_tree_config,
-                    );
-                    builder.launch_with(launcher)
-                })
-                .await?;
+    //         let op_node = OpNode::new(rollup_args.clone());
+    //         let handle = builder
+    //             .with_types_and_provider::<OpNode, BlockchainProvider<_>>()
+    //             .with_components(op_node.components())
+    //             .with_add_ons(op_node.add_ons())
+    //             .launch_with_fn(|builder| {
+    //                 let launcher = EngineNodeLauncher::new(
+    //                     builder.task_executor().clone(),
+    //                     builder.config().datadir(),
+    //                     engine_tree_config,
+    //                 );
+    //                 builder.launch_with(launcher)
+    //             })
+    //             .await?;
 
-            handle.node_exit_future.await
-        })
-    {
-        eprintln!("Error: {err:?}");
-        std::process::exit(1);
-    }
+    //         handle.node_exit_future.await
+    //     })
+    // {
+    //     eprintln!("Error: {err:?}");
+    //     std::process::exit(1);
+    // }
 }

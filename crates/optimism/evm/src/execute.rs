@@ -204,14 +204,14 @@ where
             // The sum of the transaction’s gas limit, Tg, and the gas utilized in this block prior,
             // must be no greater than the block’s gasLimit.
             let block_available_gas = block.gas_limit() - cumulative_gas_used;
-            if transaction.gas_limit() > block_available_gas &&
-                (is_regolith || !transaction.is_deposit())
+            if transaction.gas_limit() > block_available_gas
+                && (is_regolith || !transaction.is_deposit())
             {
                 return Err(BlockValidationError::TransactionGasLimitMoreThanAvailableBlockGas {
                     transaction_gas_limit: transaction.gas_limit(),
                     block_available_gas,
                 }
-                .into())
+                .into());
             }
 
             // Cache the depositor account prior to the state transition for the deposit nonce.
@@ -281,8 +281,8 @@ where
                             // when set. The state transition process ensures
                             // this is only set for post-Canyon deposit
                             // transactions.
-                            deposit_receipt_version: (transaction.is_deposit() &&
-                                self.chain_spec.is_fork_active_at_timestamp(
+                            deposit_receipt_version: (transaction.is_deposit()
+                                && self.chain_spec.is_fork_active_at_timestamp(
                                     OpHardfork::Canyon,
                                     block.header().timestamp,
                                 ))

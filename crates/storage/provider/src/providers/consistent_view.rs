@@ -55,8 +55,8 @@ where
         let block_number = provider
             .block_number(block_hash)?
             .ok_or(ProviderError::BlockHashNotFound(block_hash))?;
-        if block_number == provider.best_block_number()? &&
-            block_number == provider.last_block_number()?
+        if block_number == provider.best_block_number()?
+            && block_number == provider.last_block_number()?
         {
             Ok(HashedPostState::default())
         } else {
@@ -82,7 +82,7 @@ where
             return Err(ConsistentViewError::Inconsistent {
                 tip: GotExpected { got: tip, expected: self.tip },
             }
-            .into())
+            .into());
         }
 
         // Check that the best block number is the same as the latest stored header.
@@ -93,7 +93,7 @@ where
             return Err(ConsistentViewError::Syncing {
                 best_block: GotExpected { got: best_block_number, expected: last_num },
             }
-            .into())
+            .into());
         }
 
         Ok(provider_ro)

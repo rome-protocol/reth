@@ -98,7 +98,7 @@ pub trait EstimateCall: Call {
                         tx_env.gas_limit = MIN_TRANSACTION_GAS;
                         if let Ok((res, _)) = self.transact(&mut db, evm_env.clone(), tx_env) {
                             if res.result.is_success() {
-                                return Ok(U256::from(MIN_TRANSACTION_GAS))
+                                return Ok(U256::from(MIN_TRANSACTION_GAS));
                             }
                         }
                     }
@@ -131,8 +131,8 @@ pub trait EstimateCall: Call {
                 // retry the transaction with the block's gas limit to determine if
                 // the failure was due to insufficient gas.
                 Err(err)
-                    if err.is_gas_too_high() &&
-                        (tx_request_gas_limit.is_some() || tx_request_gas_price.is_some()) =>
+                    if err.is_gas_too_high()
+                        && (tx_request_gas_limit.is_some() || tx_request_gas_price.is_some()) =>
                 {
                     return Err(self.map_out_of_gas_err(
                         block_env_gas_limit,
@@ -150,7 +150,7 @@ pub trait EstimateCall: Call {
             ExecutionResult::Halt { reason, gas_used } => {
                 // here we don't check for invalid opcode because already executed with highest gas
                 // limit
-                return Err(RpcInvalidTransactionError::halt(reason, gas_used).into_eth_err())
+                return Err(RpcInvalidTransactionError::halt(reason, gas_used).into_eth_err());
             }
             ExecutionResult::Revert { output, .. } => {
                 // if price or limit was included in the request then we can execute the request
@@ -160,7 +160,7 @@ pub trait EstimateCall: Call {
                 } else {
                     // the transaction did revert
                     Err(RpcInvalidTransactionError::Revert(RevertError::new(output)).into_eth_err())
-                }
+                };
             }
         };
 
@@ -215,10 +215,10 @@ pub trait EstimateCall: Call {
             // An estimation error is allowed once the current gas limit range used in the binary
             // search is small enough (less than 1.5% of the highest gas limit)
             // <https://github.com/ethereum/go-ethereum/blob/a5a4fa7032bb248f5a7c40f4e8df2b131c4186a4/eth/gasestimator/gasestimator.go#L152
-            if (highest_gas_limit - lowest_gas_limit) as f64 / (highest_gas_limit as f64) <
-                ESTIMATE_GAS_ERROR_RATIO
+            if (highest_gas_limit - lowest_gas_limit) as f64 / (highest_gas_limit as f64)
+                < ESTIMATE_GAS_ERROR_RATIO
             {
-                break
+                break;
             };
 
             tx_env.gas_limit = mid_gas_limit;
@@ -351,7 +351,7 @@ pub fn update_estimated_gas_range(
                     // These cases should be unreachable because we know the transaction
                     // succeeds, but if they occur, treat them as an
                     // error.
-                    return Err(RpcInvalidTransactionError::EvmHalt(err).into_eth_err())
+                    return Err(RpcInvalidTransactionError::EvmHalt(err).into_eth_err());
                 }
             }
         }

@@ -32,13 +32,13 @@ pub(crate) fn transact_blockhashes_contract_call(
     evm: &mut impl Evm<Error: Display>,
 ) -> Result<Option<ResultAndState>, BlockExecutionError> {
     if !chain_spec.is_prague_active_at_timestamp(block_timestamp) {
-        return Ok(None)
+        return Ok(None);
     }
 
     // if the block number is zero (genesis block) then no system transaction may occur as per
     // EIP-2935
     if block_number == 0 {
-        return Ok(None)
+        return Ok(None);
     }
 
     let mut res = match evm.transact_system_call(
@@ -48,7 +48,9 @@ pub(crate) fn transact_blockhashes_contract_call(
     ) {
         Ok(res) => res,
         Err(e) => {
-            return Err(BlockValidationError::BlockHashContractCall { message: e.to_string() }.into())
+            return Err(
+                BlockValidationError::BlockHashContractCall { message: e.to_string() }.into()
+            )
         }
     };
 

@@ -93,6 +93,9 @@ clap = { workspace = true, features = ["derive", "env"] }
 backon.workspace = true
 similar-asserts.workspace = true
 
+# Solana
+rome-sdk.workspace = true
+
 [dev-dependencies]
 tempfile.workspace = true
 

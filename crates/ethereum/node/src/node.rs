@@ -133,7 +133,9 @@ where
     ) -> eyre::Result<(Self::EVM, Self::Executor)> {
         let chain_spec = ctx.chain_spec();
         let evm_config = EthEvmConfig::new(ctx.chain_spec());
-        let strategy_factory = EthExecutionStrategyFactory::new(chain_spec, evm_config.clone());
+        let rome_config = ctx.config_container.rome_config.clone();
+        let strategy_factory =
+            EthExecutionStrategyFactory::new(chain_spec, evm_config.clone(), rome_config).await; // todo;
         let executor = BasicBlockExecutorProvider::new(strategy_factory);
 
         Ok((evm_config, executor))
@@ -174,7 +176,6 @@ where
 
         let transaction_pool =
             reth_transaction_pool::Pool::eth_pool(validator, blob_store, pool_config);
-        info!(target: "reth::cli", "Transaction pool initialized");
         let transactions_path = data_dir.txpool_transactions();
 
         // spawn txpool maintenance task
@@ -207,7 +208,6 @@ where
                     Default::default(),
                 ),
             );
-            debug!(target: "reth::cli", "Spawned txpool maintenance task");
         }
 
         Ok(transaction_pool)
@@ -237,7 +237,6 @@ where
     ) -> eyre::Result<NetworkHandle> {
         let network = ctx.network_builder().await?;
         let handle = ctx.start_network(network, pool);
-        info!(target: "reth::cli", enode=%handle.local_node_record(), "P2P networking initialized");
         Ok(handle)
     }
 }

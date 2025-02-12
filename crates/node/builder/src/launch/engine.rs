@@ -33,6 +33,7 @@ use reth_provider::providers::{BlockchainProvider, NodeTypesForProvider};
 use reth_tasks::TaskExecutor;
 use reth_tokio_util::EventSender;
 use reth_tracing::tracing::{debug, error, info};
+use rome_sdk::RomeConfig;
 use std::sync::Arc;
 use tokio::sync::{mpsc::unbounded_channel, oneshot};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -98,12 +99,13 @@ where
             config,
         } = target;
         let NodeHooks { on_component_initialized, on_node_started, .. } = hooks;
+        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
 
         // setup the launch context
         let ctx = ctx
             .with_configured_globals()
             // load the toml config
-            .with_loaded_toml_config(config)?
+            .with_loaded_toml_config(config, rome_config)?
             // add resolved peers
             .with_resolved_peers().await?
             // attach the database

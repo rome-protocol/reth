@@ -173,7 +173,7 @@ impl ProofSequencer {
 
         // return early if we don't have the next expected proof
         if !self.pending_proofs.contains_key(&self.next_to_deliver) {
-            return Vec::new()
+            return Vec::new();
         }
 
         let mut consecutive_proofs = Vec::with_capacity(self.pending_proofs.len());
@@ -615,8 +615,8 @@ where
                         );
                         self.sparse_trie = Some(trie);
 
-                        let has_new_proofs = !current_multiproof.account_subtree.is_empty() ||
-                            !current_multiproof.storages.is_empty();
+                        let has_new_proofs = !current_multiproof.account_subtree.is_empty()
+                            || !current_multiproof.storages.is_empty();
                         let all_proofs_received = proofs_processed >= updates_received;
                         let no_pending = !self.proof_sequencer.has_pending();
 

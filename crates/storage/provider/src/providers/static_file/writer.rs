@@ -382,7 +382,7 @@ impl<N: NodePrimitives> StaticFileProviderRW<N> {
                 self.writer.user_header().segment(),
                 expected_block_number,
                 next_static_file_block,
-            ))
+            ));
         }
         Ok(())
     }
@@ -414,8 +414,8 @@ impl<N: NodePrimitives> StaticFileProviderRW<N> {
                 // * it's a tx-based segment AND `last_block` is lower than the first block of this
                 //   file's block range. Otherwise, having no rows simply means that this block
                 //   range has no transactions, but the file should remain.
-                if block_start != 0 &&
-                    (segment.is_headers() || last_block.is_some_and(|b| b < block_start))
+                if block_start != 0
+                    && (segment.is_headers() || last_block.is_some_and(|b| b < block_start))
                 {
                     self.delete_current_and_open_previous()?;
                 } else {
@@ -424,7 +424,7 @@ impl<N: NodePrimitives> StaticFileProviderRW<N> {
                     self.writer
                         .prune_rows(len as usize)
                         .map_err(|e| ProviderError::NippyJar(e.to_string()))?;
-                    break
+                    break;
                 }
 
                 remaining_rows -= len;
@@ -508,7 +508,7 @@ impl<N: NodePrimitives> StaticFileProviderRW<N> {
                     self.writer.user_header().segment(),
                     tx_num,
                     next_tx,
-                ))
+                ));
             }
             self.writer.user_header_mut().increment_tx();
         } else {
@@ -764,7 +764,7 @@ impl<N: NodePrimitives> StaticFileProviderRW<N> {
         if self.prune_on_commit.is_some() {
             return Err(ProviderError::NippyJar(
                 "Pruning should be committed before appending or pruning more data".to_string(),
-            ))
+            ));
         }
         Ok(())
     }

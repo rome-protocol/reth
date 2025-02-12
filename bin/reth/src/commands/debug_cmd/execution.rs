@@ -36,6 +36,7 @@ use reth_stages::{
 };
 use reth_static_file::StaticFileProducer;
 use reth_tasks::TaskExecutor;
+use rome_sdk::RomeConfig;
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::watch;
 use tracing::*;
@@ -60,7 +61,7 @@ pub struct Command<C: ChainSpecParser> {
 }
 
 impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
-    fn build_pipeline<N, Client>(
+    async fn build_pipeline<N, Client>(
         &self,
         config: &Config,
         client: Client,
@@ -84,9 +85,11 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
         let stage_conf = &config.stages;
         let prune_modes = config.prune.clone().map(|prune| prune.segments).unwrap_or_default();
+        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
 
         let (tip_tx, tip_rx) = watch::channel(B256::ZERO);
-        let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec());
+        let executor =
+            EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await;
 
         let pipeline = Pipeline::<N>::builder()
             .with_tip_sender(tip_tx)
@@ -155,7 +158,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             match get_single_header(&client, BlockHashOrNumber::Number(block)).await {
                 Ok(tip_header) => {
                     info!(target: "reth::cli", ?block, "Successfully fetched block");
-                    return Ok(tip_header.hash())
+                    return Ok(tip_header.hash());
                 }
                 Err(error) => {
                     error!(target: "reth::cli", ?block, %error, "Failed to fetch the block. Retrying...");
@@ -193,14 +196,16 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
         // Configure the pipeline
         let fetch_client = network.fetch_client().await?;
-        let mut pipeline = self.build_pipeline(
-            &config,
-            fetch_client.clone(),
-            Arc::clone(&consensus),
-            provider_factory.clone(),
-            &ctx.task_executor,
-            static_file_producer,
-        )?;
+        let mut pipeline = self
+            .build_pipeline(
+                &config,
+                fetch_client.clone(),
+                Arc::clone(&consensus),
+                provider_factory.clone(),
+                &ctx.task_executor,
+                static_file_producer,
+            )
+            .await?;
 
         let provider = provider_factory.provider()?;
 
@@ -208,7 +213,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             provider.get_stage_checkpoint(StageId::Finish)?.map(|ch| ch.block_number);
         if latest_block_number.unwrap_or_default() >= self.to {
             info!(target: "reth::cli", latest = latest_block_number, "Nothing to run");
-            return Ok(())
+            return Ok(());
         }
 
         ctx.task_executor.spawn_critical(

@@ -123,7 +123,7 @@ impl<D: BodyDownloader> BodyStage<D> {
                             &static_file_provider,
                             provider,
                             StaticFileSegment::Transactions,
-                        )?)
+                        )?);
                     }
                 } else {
                     return Err(missing_static_data_error(
@@ -131,7 +131,7 @@ impl<D: BodyDownloader> BodyStage<D> {
                         &static_file_provider,
                         provider,
                         StaticFileSegment::Transactions,
-                    )?)
+                    )?);
                 }
             }
             Ordering::Equal => {}
@@ -161,7 +161,7 @@ where
         input: ExecInput,
     ) -> Poll<Result<(), StageError>> {
         if input.target_reached() || self.buffer.is_some() {
-            return Poll::Ready(Ok(()))
+            return Poll::Ready(Ok(()));
         }
 
         // Update the header range on the downloader
@@ -187,7 +187,7 @@ where
     /// header, limited by the stage's batch size.
     fn execute(&mut self, provider: &Provider, input: ExecInput) -> Result<ExecOutput, StageError> {
         if input.target_reached() {
-            return Ok(ExecOutput::done(input.checkpoint()))
+            return Ok(ExecOutput::done(input.checkpoint()));
         }
         let (from_block, to_block) = input.next_block_range().into_inner();
 
@@ -786,7 +786,7 @@ mod tests {
                 let this = self.get_mut();
 
                 if this.headers.is_empty() {
-                    return Poll::Ready(None)
+                    return Poll::Ready(None);
                 }
 
                 let mut response =
@@ -803,12 +803,12 @@ mod tests {
                     }
 
                     if response.len() as u64 >= this.batch_size {
-                        break
+                        break;
                     }
                 }
 
                 if !response.is_empty() {
-                    return Poll::Ready(Some(Ok(response)))
+                    return Poll::Ready(Some(Ok(response)));
                 }
 
                 panic!("requested bodies without setting headers")

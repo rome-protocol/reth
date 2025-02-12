@@ -25,7 +25,7 @@ use reth_evm::noop::NoopBlockExecutorProvider;
 use reth_fs_util as fs;
 use reth_invalid_block_hooks::InvalidBlockWitnessHook;
 use reth_network_p2p::headers::client::HeadersClient;
-use reth_node_api::{FullNodeTypes, NodeTypes, NodeTypesWithDB, NodeTypesWithDBAdapter};
+use reth_node_api::{node, FullNodeTypes, NodeTypes, NodeTypesWithDB, NodeTypesWithDBAdapter};
 use reth_node_core::{
     args::InvalidBlockHookType,
     dirs::{ChainPath, DataDirPath},
@@ -58,6 +58,7 @@ use reth_static_file::StaticFileProducer;
 use reth_tasks::TaskExecutor;
 use reth_tracing::tracing::{debug, error, info, warn};
 use reth_transaction_pool::TransactionPool;
+use rome_sdk::RomeConfig;
 use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedSender},
     oneshot, watch,
@@ -91,10 +92,11 @@ impl LaunchContext {
     /// Attaches both the `NodeConfig` and the loaded `reth.toml` config to the launch context.
     pub fn with_loaded_toml_config<ChainSpec: EthChainSpec>(
         self,
-        config: NodeConfig<ChainSpec>,
+        node_config: NodeConfig<ChainSpec>,
+        rome_config: RomeConfig,
     ) -> eyre::Result<LaunchContextWith<WithConfigs<ChainSpec>>> {
-        let toml_config = self.load_toml_config(&config)?;
-        Ok(self.with(WithConfigs { config, toml_config }))
+        let toml_config = self.load_toml_config(&node_config)?;
+        Ok(self.with(WithConfigs { config: node_config, toml_config, rome_config }))
     }
 
     /// Loads the reth config with the configured `data_dir` and overrides settings according to the
@@ -793,15 +795,15 @@ where
     /// This checks for OP-Mainnet and ensures we have all the necessary data to progress (past
     /// bedrock height)
     fn ensure_chain_specific_db_checks(&self) -> ProviderResult<()> {
-        if self.chain_spec().is_optimism() &&
-            !self.is_dev() &&
-            self.chain_id() == Chain::optimism_mainnet()
+        if self.chain_spec().is_optimism()
+            && !self.is_dev()
+            && self.chain_id() == Chain::optimism_mainnet()
         {
             let latest = self.blockchain_db().last_block_number()?;
             // bedrock height
             if latest < 105235063 {
                 error!("Op-mainnet has been launched without importing the pre-Bedrock state. The chain can't progress without this. See also https://reth.rs/run/sync-op-mainnet.html?minimal-bootstrap-recommended");
-                return Err(ProviderError::BestBlockNotFound)
+                return Err(ProviderError::BestBlockNotFound);
             }
         }
 
@@ -883,7 +885,7 @@ where
         &self,
     ) -> eyre::Result<Box<dyn InvalidBlockHook<<T::Types as NodeTypes>::Primitives>>> {
         let Some(ref hook) = self.node_config().debug.invalid_block_hook else {
-            return Ok(Box::new(NoopInvalidBlockHook::default()))
+            return Ok(Box::new(NoopInvalidBlockHook::default()));
         };
         let healthy_node_rpc_client = self.get_healthy_node_client()?;
 
@@ -1000,6 +1002,8 @@ pub struct WithConfigs<ChainSpec> {
     pub config: NodeConfig<ChainSpec>,
     /// The loaded reth.toml config.
     pub toml_config: reth_config::Config,
+    /// Rome config
+    pub rome_config: RomeConfig,
 }
 
 /// Helper container type to bundle the [`ProviderFactory`] and the metrics

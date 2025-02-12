@@ -31,9 +31,9 @@ use reth_stages::{
     ExecInput, Stage, StageCheckpoint,
 };
 use reth_tasks::TaskExecutor;
+use rome_sdk::RomeConfig;
 use std::{path::PathBuf, sync::Arc};
 use tracing::*;
-
 /// `reth debug merkle` command
 #[derive(Debug, Parser)]
 pub struct Command<C: ChainSpecParser> {
@@ -110,7 +110,9 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             )
             .await?;
 
-        let executor_provider = EthExecutorProvider::ethereum(provider_factory.chain_spec());
+        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+        let executor_provider =
+            EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await;
 
         // Initialize the fetch client
         info!(target: "reth::cli", target_block_number=self.to, "Downloading tip of block range");
@@ -198,7 +200,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
             if incremental_result.is_ok() {
                 debug!(target: "reth::cli", block_number, "Successfully computed incremental root");
-                continue
+                continue;
             }
 
             warn!(target: "reth::cli", block_number, "Incremental calculation failed, retrying from scratch");
@@ -241,14 +243,14 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             let mut clean_account_mismatched = Vec::new();
             let mut incremental_account_trie_iter = incremental_account_trie.into_iter().peekable();
             let mut clean_account_trie_iter = clean_account_trie.into_iter().peekable();
-            while incremental_account_trie_iter.peek().is_some() ||
-                clean_account_trie_iter.peek().is_some()
+            while incremental_account_trie_iter.peek().is_some()
+                || clean_account_trie_iter.peek().is_some()
             {
                 match (incremental_account_trie_iter.next(), clean_account_trie_iter.next()) {
                     (Some(incremental), Some(clean)) => {
                         similar_asserts::assert_eq!(incremental.0, clean.0, "Nibbles don't match");
-                        if incremental.1 != clean.1 &&
-                            clean.0 .0.len() > self.skip_node_depth.unwrap_or_default()
+                        if incremental.1 != clean.1
+                            && clean.0 .0.len() > self.skip_node_depth.unwrap_or_default()
                         {
                             incremental_account_mismatched.push(incremental);
                             clean_account_mismatched.push(clean);
@@ -270,16 +272,16 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             let mut first_mismatched_storage = None;
             let mut incremental_storage_trie_iter = incremental_storage_trie.into_iter().peekable();
             let mut clean_storage_trie_iter = clean_storage_trie.into_iter().peekable();
-            while incremental_storage_trie_iter.peek().is_some() ||
-                clean_storage_trie_iter.peek().is_some()
+            while incremental_storage_trie_iter.peek().is_some()
+                || clean_storage_trie_iter.peek().is_some()
             {
                 match (incremental_storage_trie_iter.next(), clean_storage_trie_iter.next()) {
                     (Some(incremental), Some(clean)) => {
-                        if incremental != clean &&
-                            clean.1.nibbles.len() > self.skip_node_depth.unwrap_or_default()
+                        if incremental != clean
+                            && clean.1.nibbles.len() > self.skip_node_depth.unwrap_or_default()
                         {
                             first_mismatched_storage = Some((incremental, clean));
-                            break
+                            break;
                         }
                     }
                     (Some(incremental), None) => {

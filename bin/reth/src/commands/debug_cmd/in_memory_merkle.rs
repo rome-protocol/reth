@@ -33,6 +33,7 @@ use reth_stages::StageId;
 use reth_tasks::TaskExecutor;
 use reth_trie::StateRoot;
 use reth_trie_db::DatabaseStateRoot;
+use rome_sdk::RomeConfig;
 use std::{path::PathBuf, sync::Arc};
 use tracing::*;
 
@@ -146,8 +147,10 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
         let state_provider = LatestStateProviderRef::new(&provider);
         let db = StateProviderDatabase::new(&state_provider);
-
-        let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec()).executor(db);
+        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+        let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config)
+            .await
+            .executor(db);
         let block_execution_output = executor.execute(&block.clone().try_recover()?)?;
         let execution_outcome = ExecutionOutcome::from((block_execution_output, block.number()));
 
@@ -159,7 +162,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
         if in_memory_state_root == block.state_root() {
             info!(target: "reth::cli", state_root = ?in_memory_state_root, "Computed in-memory state root matches");
-            return Ok(())
+            return Ok(());
         }
 
         let provider_rw = provider_factory.database_provider_rw()?;
@@ -205,8 +208,8 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             match (in_mem_updates_iter.next(), incremental_updates_iter.next()) {
                 (Some(in_mem), Some(incr)) => {
                     similar_asserts::assert_eq!(in_mem.0, incr.0, "Nibbles don't match");
-                    if in_mem.1 != incr.1 &&
-                        in_mem.0.len() > self.skip_node_depth.unwrap_or_default()
+                    if in_mem.1 != incr.1
+                        && in_mem.0.len() > self.skip_node_depth.unwrap_or_default()
                     {
                         in_mem_mismatched.push(in_mem);
                         incremental_mismatched.push(incr);
