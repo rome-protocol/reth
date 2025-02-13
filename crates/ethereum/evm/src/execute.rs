@@ -9,7 +9,7 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{BlockHeader, Transaction};
 use alloy_eips::{eip6110, eip7685::Requests};
-use reth_chainspec::{ChainSpec, EthChainSpec, EthereumHardfork, EthereumHardforks, MAINNET};
+use reth_chainspec::{ChainSpec, EthereumHardfork, EthereumHardforks, MAINNET};
 use reth_consensus::ConsensusError;
 use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::{
@@ -28,6 +28,7 @@ use revm_primitives::{db::DatabaseCommit, ResultAndState};
 use rome_sdk::{rome_evm_client::Payer, rome_solana::{tower::SolanaTower, types::SyncAtomicRpcClient}, Rome, RomeConfig};
 use rome_sdk::rome_evm_client::tx::TxBuilder;
 use rome_sdk::Pubkey;
+
 /// Factory for [`EthExecutionStrategy`].
 #[derive(Clone)]
 pub struct EthExecutionStrategyFactory<EvmConfig = EthEvmConfig> {

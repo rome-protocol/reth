@@ -18,14 +18,14 @@ fn main() {
     //     std::env::set_var("RUST_BACKTRACE", "1");
     // }
 
-    // if let Err(err) =
-    //     Cli::<OpChainSpecParser, RollupArgs>::parse().run(|builder, rollup_args| async move {
-    //         info!(target: "reth::cli", "Launching node");
-    //         let handle = builder.launch_node(OpNode::new(rollup_args)).await?;
-    //         handle.node_exit_future.await
-    //     })
-    // {
-    //     eprintln!("Error: {err:?}");
-    //     std::process::exit(1);
-    // }
+    if let Err(err) =
+        Cli::<OpChainSpecParser, RollupArgs>::parse().run(|builder, rollup_args| async move {
+            info!(target: "reth::cli", "Launching node");
+            let handle = builder.launch_node(OpNode::new(rollup_args)).await?;
+            handle.node_exit_future.await
+        })
+    {
+        eprintln!("Error: {err:?}");
+        std::process::exit(1);
+    }
 }
