@@ -21,6 +21,7 @@ use reth_evm::{
     system_calls::{OnStateHook, SystemCaller},
     ConfigureEvm, Database, Evm,
 };
+use reth_chainspec::EthChainSpec;
 use reth_primitives::{EthPrimitives, Receipt, RecoveredBlock};
 use reth_primitives_traits::{BlockBody, SignedTransaction};
 use revm::db::State;

@@ -26,6 +26,8 @@ reth-node-types.workspace = true
 reth-chainspec.workspace = true
 reth-engine-primitives.workspace = true
 
+rome-sdk.workspace = true 
+
 # async
 futures.workspace = true
 pin-project.workspace = true

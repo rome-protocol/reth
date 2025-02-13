@@ -102,4 +102,5 @@ where
             Self::Left(a) => a.size_hint(),
             Self::Right(b) => b.size_hint(),
         }
+    }
 }

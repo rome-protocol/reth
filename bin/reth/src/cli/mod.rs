@@ -23,6 +23,7 @@ use reth_node_metrics::recorder::install_prometheus_recorder;
 use reth_tracing::FileWorkerGuard;
 use std::{ffi::OsString, fmt, future::Future, sync::Arc};
 use tracing::info;
+use rome_sdk::RomeConfig;
 
 /// Re-export of the `reth_node_core` types specifically in the `cli` module.
 ///
@@ -150,11 +151,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>, Ext: clap::Args + fmt::Debug> Cl
 
         // Install the prometheus recorder to be sure to record all metrics
         let _ = install_prometheus_recorder();
-
         let runner = CliRunner::default();
-        let components = |spec: Arc<C::ChainSpec>| {
-            (EthExecutorProvider::ethereum(spec.clone()), EthBeaconConsensus::new(spec))
-        };
         match self.command {
             Commands::Node(command) => {
                 runner.run_command_until_exit(|ctx| command.execute(ctx, launcher))
@@ -165,16 +162,16 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>, Ext: clap::Args + fmt::Debug> Cl
             Commands::InitState(command) => {
                 runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode>())
             }
-            Commands::Import(command) => {
-                runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode, _, _>(components))
-            }
+            // Commands::Import(command) => {
+            //     runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode, _, _>(components))
+            // }
             Commands::DumpGenesis(command) => runner.run_blocking_until_ctrl_c(command.execute()),
             Commands::Db(command) => {
                 runner.run_blocking_until_ctrl_c(command.execute::<EthereumNode>())
             }
-            Commands::Stage(command) => runner.run_command_until_exit(|ctx| {
-                command.execute::<EthereumNode, _, _, EthNetworkPrimitives>(ctx, components)
-            }),
+            // Commands::Stage(command) => runner.run_command_until_exit(|ctx| {
+            //     command.execute::<EthereumNode, _, _, EthNetworkPrimitives>(ctx, components)
+            // }),
             Commands::P2P(command) => {
                 runner.run_until_ctrl_c(command.execute::<EthNetworkPrimitives>())
             }

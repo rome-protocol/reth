@@ -554,39 +554,6 @@ impl<F: BlindedProviderFactory> SparseStateTrie<F> {
             .collect()
     }
 
-    /// Returns sparse trie root and trie updates if the trie has been revealed.
-    pub fn root_with_updates(&mut self) -> Option<(B256, TrieUpdates)> {
-        let storage_tries = self.storage_trie_updates();
-        self.state.root_with_updates().map(|(root, updates)| {
-            let updates = TrieUpdates {
-                account_nodes: updates.updated_nodes,
-                removed_nodes: updates.removed_nodes,
-                storage_tries,
-            };
-            (root, updates)
-        })
-    }
-
-    /// Returns storage trie updates for tries that have been revealed.
-    ///
-    /// Panics if any of the storage tries are not revealed.
-    pub fn storage_trie_updates(&mut self) -> B256Map<StorageTrieUpdates> {
-        self.storages
-            .iter_mut()
-            .map(|(address, trie)| {
-                let trie = trie.as_revealed_mut().unwrap();
-                let updates = trie.take_updates();
-                let updates = StorageTrieUpdates {
-                    is_deleted: updates.wiped,
-                    storage_nodes: updates.updated_nodes,
-                    removed_nodes: updates.removed_nodes,
-                };
-                (*address, updates)
-            })
-            .filter(|(_, updates)| !updates.is_empty())
-            .collect()
-    }
-
     /// Returns [`TrieUpdates`] by taking the updates from the revealed sparse tries.
     ///
     /// Returns `None` if the accounts trie is not revealed.

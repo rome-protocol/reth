@@ -65,6 +65,9 @@ reth-node-metrics.workspace = true
 reth-consensus.workspace = true
 reth-prune.workspace = true
 
+# solana 
+rome-sdk.workspace = true 
+
 # crypto
 alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-rlp.workspace = true
@@ -88,9 +91,6 @@ eyre.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 backon.workspace = true
 similar-asserts.workspace = true
-
-# Solana
-rome-sdk.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
