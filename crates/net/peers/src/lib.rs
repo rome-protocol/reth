@@ -178,17 +178,17 @@ impl FromStr for AnyNode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(rem) = s.strip_prefix("enode://") {
             if let Ok(record) = NodeRecord::from_str(s) {
-                return Ok(Self::NodeRecord(record));
+                return Ok(Self::NodeRecord(record))
             }
             // incomplete enode
             if let Ok(peer_id) = PeerId::from_str(rem) {
-                return Ok(Self::PeerId(peer_id));
+                return Ok(Self::PeerId(peer_id))
             }
-            return Err(format!("invalid public key: {rem}"));
+            return Err(format!("invalid public key: {rem}"))
         }
         #[cfg(feature = "secp256k1")]
         if s.starts_with("enr:") {
-            return Enr::from_str(s).map(AnyNode::Enr);
+            return Enr::from_str(s).map(AnyNode::Enr)
         }
         Err("missing 'enr:' prefix for base64-encoded record".to_string())
     }
@@ -255,9 +255,29 @@ impl<T> WithPeerId<T> {
 }
 
 impl<T> WithPeerId<Option<T>> {
-    /// returns `None` if the inner value is `None`, otherwise returns `Some(WithPeerId<T>)`.
+    /// Returns `None` if the inner value is `None`, otherwise returns `Some(WithPeerId<T>)`.
     pub fn transpose(self) -> Option<WithPeerId<T>> {
         self.1.map(|v| WithPeerId(self.0, v))
+    }
+
+    /// Returns the contained Some value, consuming the self value.
+    ///
+    /// See also [`Option::unwrap`]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a None
+    pub fn unwrap(self) -> T {
+        self.1.unwrap()
+    }
+
+    /// Returns the transposed [`WithPeerId`] type with the contained Some value
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is a None
+    pub fn unwrapped(self) -> WithPeerId<T> {
+        self.transpose().unwrap()
     }
 }
 

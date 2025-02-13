@@ -8,7 +8,7 @@ use derive_more::{Display, Error};
 use reth_consensus::ConsensusError;
 use reth_network_peers::WithPeerId;
 use reth_network_types::ReputationChangeKind;
-use reth_primitives::{GotExpected, GotExpectedBoxed};
+use reth_primitives_traits::{GotExpected, GotExpectedBoxed};
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use tokio::sync::{mpsc, oneshot};
 
@@ -34,7 +34,7 @@ impl<H: BlockHeader> EthResponseValidator for RequestResult<Vec<H>> {
                 let request_length = headers.len() as u64;
 
                 if request_length <= 1 && request.limit != request_length {
-                    return true;
+                    return true
                 }
 
                 match request.start {
@@ -62,10 +62,10 @@ impl<H: BlockHeader> EthResponseValidator for RequestResult<Vec<H>> {
     fn reputation_change_err(&self) -> Option<ReputationChangeKind> {
         if let Err(err) = self {
             match err {
-                RequestError::ChannelClosed
-                | RequestError::ConnectionDropped
-                | RequestError::UnsupportedCapability
-                | RequestError::BadResponse => None,
+                RequestError::ChannelClosed |
+                RequestError::ConnectionDropped |
+                RequestError::UnsupportedCapability |
+                RequestError::BadResponse => None,
                 RequestError::Timeout => Some(ReputationChangeKind::Timeout),
             }
         } else {

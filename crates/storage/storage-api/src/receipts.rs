@@ -1,9 +1,10 @@
 use crate::BlockIdReader;
+use alloc::vec::Vec;
 use alloy_eips::{BlockHashOrNumber, BlockId, BlockNumberOrTag};
 use alloy_primitives::{TxHash, TxNumber};
+use core::ops::RangeBounds;
 use reth_primitives_traits::Receipt;
 use reth_storage_errors::provider::ProviderResult;
-use std::ops::RangeBounds;
 
 /// A helper type alias to access [`ReceiptProvider::Receipt`].
 pub type ProviderReceipt<P> = <P as ReceiptProvider>::Receipt;
@@ -58,7 +59,7 @@ pub trait ReceiptProviderIdExt: ReceiptProvider + BlockIdReader {
                 if let Some(num) = self.convert_block_number(num_tag)? {
                     BlockHashOrNumber::Number(num)
                 } else {
-                    return Ok(None);
+                    return Ok(None)
                 }
             }
         };

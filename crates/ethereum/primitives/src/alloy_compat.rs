@@ -4,17 +4,17 @@ use crate::{Transaction, TransactionSigned};
 use alloc::string::ToString;
 use alloy_consensus::TxEnvelope;
 use alloy_network::{AnyRpcTransaction, AnyTxEnvelope};
+use alloy_rpc_types_eth::Transaction as AlloyRpcTransaction;
 use alloy_serde::WithOtherFields;
 
 impl TryFrom<AnyRpcTransaction> for TransactionSigned {
-    type Error = alloy_rpc_types::ConversionError;
+    type Error = alloy_rpc_types_eth::ConversionError;
 
     fn try_from(tx: AnyRpcTransaction) -> Result<Self, Self::Error> {
-        use alloy_rpc_types::ConversionError;
+        use alloy_rpc_types_eth::ConversionError;
 
         let WithOtherFields { inner: tx, other: _ } = tx;
 
-        #[allow(unreachable_patterns)]
         let (transaction, signature, hash) = match tx.inner {
             AnyTxEnvelope::Ethereum(TxEnvelope::Legacy(tx)) => {
                 let (tx, signature, hash) = tx.into_parts();
@@ -39,6 +39,15 @@ impl TryFrom<AnyRpcTransaction> for TransactionSigned {
             _ => return Err(ConversionError::Custom("unknown transaction type".to_string())),
         };
 
-        Ok(Self { transaction, signature, hash: hash.into() })
+        Ok(Self::new(transaction, signature, hash))
+    }
+}
+
+impl<T> From<AlloyRpcTransaction<T>> for TransactionSigned
+where
+    Self: From<T>,
+{
+    fn from(value: AlloyRpcTransaction<T>) -> Self {
+        value.inner.into()
     }
 }

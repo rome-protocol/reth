@@ -23,7 +23,7 @@ use revm_inspectors::{
     tracing::{types::CallTraceNode, TracingInspectorConfig},
     transfer::{TransferInspector, TransferKind},
 };
-use revm_primitives::{ExecutionResult, SignedAuthorization};
+use revm_primitives::ExecutionResult;
 
 const API_LEVEL: u64 = 8;
 
@@ -226,7 +226,7 @@ where
         if tx_len != receipts.len() {
             return Err(internal_rpc_err(
                 "the number of transactions does not match the number of receipts",
-            ));
+            ))
         }
 
         // make sure the block is full
@@ -277,9 +277,6 @@ where
                     from: receipt.from(),
                     to: receipt.to(),
                     contract_address: receipt.contract_address(),
-                    authorization_list: receipt
-                        .authorization_list()
-                        .map(<[SignedAuthorization]>::to_vec),
                 };
 
                 OtsTransactionReceipt { receipt, timestamp }

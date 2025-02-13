@@ -33,7 +33,7 @@ impl NewBlockHashes {
     pub fn latest(&self) -> Option<&BlockHashNumber> {
         self.0.iter().fold(None, |latest, block| {
             if let Some(latest) = latest {
-                return if latest.number > block.number { Some(latest) } else { Some(block) };
+                return if latest.number > block.number { Some(latest) } else { Some(block) }
             }
             Some(block)
         })
@@ -122,6 +122,7 @@ pub struct SharedTransactions<T = TransactionSigned>(
 
 /// A wrapper type for all different new pooled transaction types
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NewPooledTransactionHashes {
     /// A list of transaction hashes valid for [66-68)
     Eth66(NewPooledTransactionHashes66),
@@ -374,6 +375,35 @@ impl NewPooledTransactionHashes68 {
     pub fn metadata_iter(&self) -> impl Iterator<Item = (&B256, (u8, usize))> {
         self.hashes.iter().zip(self.types.iter().copied().zip(self.sizes.iter().copied()))
     }
+
+    /// Appends a transaction
+    pub fn push<T: SignedTransaction>(&mut self, tx: &T) {
+        self.hashes.push(*tx.tx_hash());
+        self.sizes.push(tx.encode_2718_len());
+        self.types.push(tx.ty());
+    }
+
+    /// Appends the provided transactions
+    pub fn extend<'a, T: SignedTransaction>(&mut self, txs: impl IntoIterator<Item = &'a T>) {
+        for tx in txs {
+            self.push(tx);
+        }
+    }
+
+    /// Consumes and appends a transaction
+    pub fn with_transaction<T: SignedTransaction>(mut self, tx: &T) -> Self {
+        self.push(tx);
+        self
+    }
+
+    /// Consumes and appends the provided transactions
+    pub fn with_transactions<'a, T: SignedTransaction>(
+        mut self,
+        txs: impl IntoIterator<Item = &'a T>,
+    ) -> Self {
+        self.extend(txs);
+        self
+    }
 }
 
 impl Encodable for NewPooledTransactionHashes68 {
@@ -431,13 +461,13 @@ impl Decodable for NewPooledTransactionHashes68 {
             return Err(alloy_rlp::Error::ListLengthMismatch {
                 expected: msg.hashes.len(),
                 got: msg.types.len(),
-            });
+            })
         }
         if msg.hashes.len() != msg.sizes.len() {
             return Err(alloy_rlp::Error::ListLengthMismatch {
                 expected: msg.hashes.len(),
                 got: msg.sizes.len(),
-            });
+            })
         }
 
         Ok(msg)
@@ -710,7 +740,7 @@ impl RequestTxHashes {
     pub fn retain_count(&mut self, count: usize) -> Self {
         let rest_capacity = self.hashes.len().saturating_sub(count);
         if rest_capacity == 0 {
-            return Self::empty();
+            return Self::empty()
         }
         let mut rest = Self::with_capacity(rest_capacity);
 
@@ -718,7 +748,7 @@ impl RequestTxHashes {
         self.hashes.retain(|hash| {
             if i >= count {
                 rest.insert(*hash);
-                return false;
+                return false
             }
             i += 1;
 
@@ -738,7 +768,10 @@ impl FromIterator<(TxHash, Eth68TxMetadata)> for RequestTxHashes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{b256, hex};
+    use alloy_consensus::Typed2718;
+    use alloy_eips::eip2718::Encodable2718;
+    use alloy_primitives::{b256, hex, PrimitiveSignature as Signature, U256};
+    use reth_ethereum_primitives::{Transaction, TransactionSigned};
     use std::str::FromStr;
 
     /// Takes as input a struct / encoded hex message pair, ensuring that we encode to the exact hex
@@ -946,5 +979,86 @@ mod tests {
 
         assert_eq!(0, hashes.len());
         assert_eq!(5, rest.len());
+    }
+
+    fn signed_transaction() -> impl SignedTransaction {
+        TransactionSigned::new_unhashed(
+            Transaction::Legacy(Default::default()),
+            Signature::new(
+                U256::from_str(
+                    "0x64b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12",
+                )
+                .unwrap(),
+                U256::from_str(
+                    "0x64b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10",
+                )
+                .unwrap(),
+                false,
+            ),
+        )
+    }
+
+    #[test]
+    fn test_pooled_tx_hashes_68_push() {
+        let tx = signed_transaction();
+        let mut tx_hashes =
+            NewPooledTransactionHashes68 { types: vec![], sizes: vec![], hashes: vec![] };
+        tx_hashes.push(&tx);
+        assert_eq!(tx_hashes.types.len(), 1);
+        assert_eq!(tx_hashes.sizes.len(), 1);
+        assert_eq!(tx_hashes.hashes.len(), 1);
+        assert_eq!(tx_hashes.types[0], tx.ty());
+        assert_eq!(tx_hashes.sizes[0], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[0], *tx.tx_hash());
+    }
+
+    #[test]
+    fn test_pooled_tx_hashes_68_extend() {
+        let tx = signed_transaction();
+        let txs = vec![tx.clone(), tx.clone()];
+        let mut tx_hashes =
+            NewPooledTransactionHashes68 { types: vec![], sizes: vec![], hashes: vec![] };
+        tx_hashes.extend(&txs);
+        assert_eq!(tx_hashes.types.len(), 2);
+        assert_eq!(tx_hashes.sizes.len(), 2);
+        assert_eq!(tx_hashes.hashes.len(), 2);
+        assert_eq!(tx_hashes.types[0], tx.ty());
+        assert_eq!(tx_hashes.sizes[0], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[0], *tx.tx_hash());
+        assert_eq!(tx_hashes.types[1], tx.ty());
+        assert_eq!(tx_hashes.sizes[1], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[1], *tx.tx_hash());
+    }
+
+    #[test]
+    fn test_pooled_tx_hashes_68_with_transaction() {
+        let tx = signed_transaction();
+        let tx_hashes =
+            NewPooledTransactionHashes68 { types: vec![], sizes: vec![], hashes: vec![] }
+                .with_transaction(&tx);
+        assert_eq!(tx_hashes.types.len(), 1);
+        assert_eq!(tx_hashes.sizes.len(), 1);
+        assert_eq!(tx_hashes.hashes.len(), 1);
+        assert_eq!(tx_hashes.types[0], tx.ty());
+        assert_eq!(tx_hashes.sizes[0], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[0], *tx.tx_hash());
+    }
+
+    #[test]
+    fn test_pooled_tx_hashes_68_with_transactions() {
+        let tx = signed_transaction();
+        let txs = vec![tx.clone(), tx.clone()];
+        let tx_hashes =
+            NewPooledTransactionHashes68 { types: vec![], sizes: vec![], hashes: vec![] }
+                .with_transactions(&txs);
+        assert_eq!(tx_hashes.types.len(), 2);
+        assert_eq!(tx_hashes.sizes.len(), 2);
+        assert_eq!(tx_hashes.hashes.len(), 2);
+        assert_eq!(tx_hashes.types[0], tx.ty());
+        assert_eq!(tx_hashes.sizes[0], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[0], *tx.tx_hash());
+        assert_eq!(tx_hashes.types[1], tx.ty());
+        assert_eq!(tx_hashes.sizes[1], tx.encode_2718_len());
+        assert_eq!(tx_hashes.hashes[1], *tx.tx_hash());
     }
 }

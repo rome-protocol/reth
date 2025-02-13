@@ -1,7 +1,7 @@
 //! Contains [Chain], a chain of blocks and their final state.
 
 use crate::ExecutionOutcome;
-use alloc::{borrow::Cow, collections::BTreeMap};
+use alloc::{borrow::Cow, boxed::Box, collections::BTreeMap, vec::Vec};
 use alloy_consensus::BlockHeader;
 use alloy_eips::{eip1898::ForkBlock, eip2718::Encodable2718, BlockNumHash};
 use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash};
@@ -141,13 +141,13 @@ impl<N: NodePrimitives> Chain<N> {
         block_number: BlockNumber,
     ) -> Option<ExecutionOutcome<N::Receipt>> {
         if self.tip().number() == block_number {
-            return Some(self.execution_outcome.clone());
+            return Some(self.execution_outcome.clone())
         }
 
         if self.blocks.contains_key(&block_number) {
             let mut execution_outcome = self.execution_outcome.clone();
             execution_outcome.revert_to(block_number);
-            return Some(execution_outcome);
+            return Some(execution_outcome)
         }
         None
     }
@@ -170,7 +170,7 @@ impl<N: NodePrimitives> Chain<N> {
     }
 
     /// Returns an iterator over all the receipts of the blocks in the chain.
-    pub fn block_receipts_iter(&self) -> impl Iterator<Item = &Vec<Option<N::Receipt>>> + '_ {
+    pub fn block_receipts_iter(&self) -> impl Iterator<Item = &Vec<N::Receipt>> + '_ {
         self.execution_outcome.receipts().iter()
     }
 
@@ -182,7 +182,7 @@ impl<N: NodePrimitives> Chain<N> {
     /// Returns an iterator over all blocks and their receipts in the chain.
     pub fn blocks_and_receipts(
         &self,
-    ) -> impl Iterator<Item = (&RecoveredBlock<N::Block>, &Vec<Option<N::Receipt>>)> + '_ {
+    ) -> impl Iterator<Item = (&RecoveredBlock<N::Block>, &Vec<N::Receipt>)> + '_ {
         self.blocks_iter().zip(self.block_receipts_iter())
     }
 
@@ -233,7 +233,7 @@ impl<N: NodePrimitives> Chain<N> {
     /// Get all receipts for the given block.
     pub fn receipts_by_block_hash(&self, block_hash: BlockHash) -> Option<Vec<&N::Receipt>> {
         let num = self.block_number(block_hash)?;
-        self.execution_outcome.receipts_by_block(num).iter().map(Option::as_ref).collect()
+        Some(self.execution_outcome.receipts_by_block(num).iter().collect())
     }
 
     /// Get all receipts with attachment.
@@ -249,10 +249,7 @@ impl<N: NodePrimitives> Chain<N> {
         {
             let mut tx_receipts = Vec::with_capacity(receipts.len());
             for (tx, receipt) in block.body().transactions().iter().zip(receipts.iter()) {
-                tx_receipts.push((
-                    tx.trie_hash(),
-                    receipt.as_ref().expect("receipts have not been pruned").clone(),
-                ));
+                tx_receipts.push((tx.trie_hash(), receipt.clone()));
             }
             let block_num_hash = BlockNumHash::new(*block_num, block.hash());
             receipt_attach.push(BlockReceipts { block: block_num_hash, tx_receipts });
@@ -283,7 +280,7 @@ impl<N: NodePrimitives> Chain<N> {
                 chain_tip: Box::new(chain_tip.num_hash()),
                 other_chain_fork: Box::new(other_fork_block),
             }
-            .into());
+            .into())
         }
 
         // Insert blocks from other chain
@@ -320,23 +317,23 @@ impl<N: NodePrimitives> Chain<N> {
         let block_number = match split_at {
             ChainSplitTarget::Hash(block_hash) => {
                 let Some(block_number) = self.block_number(block_hash) else {
-                    return ChainSplit::NoSplitPending(self);
+                    return ChainSplit::NoSplitPending(self)
                 };
                 // If block number is same as tip whole chain is becoming canonical.
                 if block_number == chain_tip {
-                    return ChainSplit::NoSplitCanonical(self);
+                    return ChainSplit::NoSplitCanonical(self)
                 }
                 block_number
             }
             ChainSplitTarget::Number(block_number) => {
                 if block_number > chain_tip {
-                    return ChainSplit::NoSplitPending(self);
+                    return ChainSplit::NoSplitPending(self)
                 }
                 if block_number == chain_tip {
-                    return ChainSplit::NoSplitCanonical(self);
+                    return ChainSplit::NoSplitCanonical(self)
                 }
                 if block_number < *self.blocks.first_entry().expect("chain is never empty").key() {
-                    return ChainSplit::NoSplitPending(self);
+                    return ChainSplit::NoSplitPending(self)
                 }
                 block_number
             }
@@ -345,7 +342,7 @@ impl<N: NodePrimitives> Chain<N> {
         let split_at = block_number + 1;
         let higher_number_blocks = self.blocks.split_off(&split_at);
 
-        let execution_outcome = std::mem::take(&mut self.execution_outcome);
+        let execution_outcome = core::mem::take(&mut self.execution_outcome);
         let (canonical_block_exec_outcome, pending_block_exec_outcome) =
             execution_outcome.split_at(split_at);
 
@@ -431,7 +428,7 @@ impl<B: Block<Body: BlockBody<Transaction: SignedTransaction>>> ChainBlocks<'_, 
     /// Returns an iterator over all transactions in the chain.
     #[inline]
     pub fn transactions(&self) -> impl Iterator<Item = &<B::Body as BlockBody>::Transaction> + '_ {
-        self.blocks.values().flat_map(|block| block.body().transactions().iter())
+        self.blocks.values().flat_map(|block| block.body().transactions_iter())
     }
 
     /// Returns an iterator over all transactions and their senders.
@@ -457,13 +454,13 @@ impl<B: Block<Body: BlockBody<Transaction: SignedTransaction>>> ChainBlocks<'_, 
     pub fn transaction_hashes(&self) -> impl Iterator<Item = TxHash> + '_ {
         self.blocks
             .values()
-            .flat_map(|block| block.body().transactions().iter().map(|tx| tx.trie_hash()))
+            .flat_map(|block| block.body().transactions_iter().map(|tx| tx.trie_hash()))
     }
 }
 
 impl<B: Block> IntoIterator for ChainBlocks<'_, B> {
     type Item = (BlockNumber, RecoveredBlock<B>);
-    type IntoIter = std::collections::btree_map::IntoIter<BlockNumber, RecoveredBlock<B>>;
+    type IntoIter = alloc::collections::btree_map::IntoIter<BlockNumber, RecoveredBlock<B>>;
 
     fn into_iter(self) -> Self::IntoIter {
         #[allow(clippy::unnecessary_to_owned)]
@@ -706,7 +703,6 @@ mod tests {
     use alloy_consensus::TxType;
     use alloy_primitives::{Address, B256};
     use reth_ethereum_primitives::Receipt;
-    use reth_primitives::Receipts;
     use revm::primitives::{AccountInfo, HashMap};
 
     // TODO: this is temporary, until we fully switch over to `reth_ethereum_primitives` for the
@@ -768,7 +764,7 @@ mod tests {
                 vec![vec![(Address::new([2; 20]), None, vec![])]],
                 vec![],
             ),
-            vec![vec![]].into(),
+            vec![vec![]],
             1,
             vec![],
         );
@@ -784,7 +780,7 @@ mod tests {
                 vec![vec![(Address::new([3; 20]), None, vec![])]],
                 vec![],
             ),
-            vec![vec![]].into(),
+            vec![vec![]],
             2,
             vec![],
         );
@@ -887,8 +883,7 @@ mod tests {
         };
 
         // Create a Receipts object with a vector of receipt vectors
-        let receipts =
-            Receipts { receipt_vec: vec![vec![Some(receipt1.clone())], vec![Some(receipt2)]] };
+        let receipts = vec![vec![receipt1.clone()], vec![receipt2]];
 
         // Create an ExecutionOutcome object with the created bundle, receipts, an empty requests
         // vector, and first_block set to 10
@@ -913,7 +908,7 @@ mod tests {
         // Create an ExecutionOutcome object with a single receipt vector containing receipt1
         let execution_outcome1 = ExecutionOutcome {
             bundle: Default::default(),
-            receipts: Receipts { receipt_vec: vec![vec![Some(receipt1)]] },
+            receipts: vec![vec![receipt1]],
             requests: vec![],
             first_block: 10,
         };

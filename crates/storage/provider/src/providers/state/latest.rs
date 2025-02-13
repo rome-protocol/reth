@@ -2,9 +2,7 @@ use crate::{
     providers::state::macros::delegate_provider_impls, AccountReader, BlockHashReader,
     HashedPostStateProvider, StateProvider, StateRootProvider,
 };
-use alloy_primitives::{
-    map::B256HashMap, Address, BlockNumber, Bytes, StorageKey, StorageValue, B256,
-};
+use alloy_primitives::{map::B256Map, Address, BlockNumber, Bytes, StorageKey, StorageValue, B256};
 use reth_db::tables;
 use reth_db_api::{cursor::DbDupCursorRO, transaction::DbTx};
 use reth_primitives::{Account, Bytecode};
@@ -146,11 +144,7 @@ impl<Provider: DBProvider + StateCommitmentProvider> StateProofProvider
         Proof::overlay_multiproof(self.tx(), input, targets).map_err(ProviderError::from)
     }
 
-    fn witness(
-        &self,
-        input: TrieInput,
-        target: HashedPostState,
-    ) -> ProviderResult<B256HashMap<Bytes>> {
+    fn witness(&self, input: TrieInput, target: HashedPostState) -> ProviderResult<B256Map<Bytes>> {
         TrieWitness::overlay_witness(self.tx(), input, target).map_err(ProviderError::from)
     }
 }
@@ -177,7 +171,7 @@ impl<Provider: DBProvider + BlockHashReader + StateCommitmentProvider> StateProv
         let mut cursor = self.tx().cursor_dup_read::<tables::PlainStorageState>()?;
         if let Some(entry) = cursor.seek_by_key_subkey(account, storage_key)? {
             if entry.key == storage_key {
-                return Ok(Some(entry.value));
+                return Ok(Some(entry.value))
             }
         }
         Ok(None)

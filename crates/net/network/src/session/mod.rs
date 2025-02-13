@@ -33,9 +33,9 @@ use counter::SessionCounter;
 use futures::{future::Either, io, FutureExt, StreamExt};
 use reth_ecies::{stream::ECIESStream, ECIESError};
 use reth_eth_wire::{
-    capability::CapabilityMessage, errors::EthStreamError, multiplex::RlpxProtocolMultiplexer,
-    Capabilities, DisconnectReason, EthVersion, HelloMessageWithProtocols, NetworkPrimitives,
-    Status, UnauthedEthStream, UnauthedP2PStream,
+    errors::EthStreamError, multiplex::RlpxProtocolMultiplexer, Capabilities, DisconnectReason,
+    EthVersion, HelloMessageWithProtocols, NetworkPrimitives, Status, UnauthedEthStream,
+    UnauthedP2PStream,
 };
 use reth_ethereum_forks::{ForkFilter, ForkId, ForkTransition, Head};
 use reth_metrics::common::mpsc::MeteredPollSender;
@@ -388,7 +388,7 @@ impl<N: NetworkPrimitives> SessionManager<N> {
     ) {
         if !self.disconnections_counter.has_capacity() {
             // drop the connection if we don't have capacity for gracefully disconnecting
-            return;
+            return
         }
 
         let guard = self.disconnections_counter.clone();
@@ -444,9 +444,6 @@ impl<N: NetworkPrimitives> SessionManager<N> {
                     ActiveSessionMessage::ValidMessage { peer_id, message } => {
                         Poll::Ready(SessionEvent::ValidMessage { peer_id, message })
                     }
-                    ActiveSessionMessage::InvalidMessage { peer_id, capabilities, message } => {
-                        Poll::Ready(SessionEvent::InvalidMessage { peer_id, message, capabilities })
-                    }
                     ActiveSessionMessage::BadMessage { peer_id } => {
                         Poll::Ready(SessionEvent::BadMessage { peer_id })
                     }
@@ -499,7 +496,7 @@ impl<N: NetworkPrimitives> SessionManager<N> {
                         peer_id,
                         remote_addr,
                         direction,
-                    });
+                    })
                 }
 
                 let (commands_to_session, commands_rx) = mpsc::channel(self.session_command_buffer);
@@ -703,15 +700,6 @@ pub enum SessionEvent<N: NetworkPrimitives> {
         /// Message received from the peer.
         message: PeerMessage<N>,
     },
-    /// Received a message that does not match the announced capabilities of the peer.
-    InvalidMessage {
-        /// The remote node's public key
-        peer_id: PeerId,
-        /// Announced capabilities of the remote peer.
-        capabilities: Arc<Capabilities>,
-        /// Message received from the peer.
-        message: CapabilityMessage<N>,
-    },
     /// Received a bad message from the peer.
     BadMessage {
         /// Identifier of the remote peer.
@@ -881,7 +869,7 @@ async fn start_pending_outbound_session<N: NetworkPrimitives>(
                     error,
                 })
                 .await;
-            return;
+            return
         }
     };
     authenticate(
@@ -927,7 +915,7 @@ async fn authenticate<N: NetworkPrimitives>(
                     direction,
                 })
                 .await;
-            return;
+            return
         }
     };
 

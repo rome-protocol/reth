@@ -25,7 +25,7 @@ use std::{
 /// If the response arrived with insufficient number of bodies, the future
 /// will issue another request until all bodies are collected.
 ///
-/// It then proceeds to verify the downloaded bodies. In case of an validation error,
+/// It then proceeds to verify the downloaded bodies. In case of a validation error,
 /// the future will start over.
 ///
 /// The future will filter out any empty headers (see [`alloy_consensus::Header::is_empty`]) from
@@ -135,14 +135,14 @@ where
         // next one exceed the soft response limit, if not then peer either does not have the next
         // block or deliberately sent a single block.
         if bodies.is_empty() {
-            return Err(DownloadError::EmptyResponse);
+            return Err(DownloadError::EmptyResponse)
         }
 
         if response_len > request_len {
             return Err(DownloadError::TooManyBodies(GotExpected {
                 got: response_len,
                 expected: request_len,
-            }));
+            }))
         }
 
         // Buffer block responses
@@ -199,7 +199,7 @@ where
                         hash,
                         number,
                         error: Box::new(error),
-                    });
+                    })
                 }
 
                 self.buffer.push(BlockResponse::Full(block));
@@ -226,7 +226,7 @@ where
 
         loop {
             if this.pending_headers.is_empty() {
-                return Poll::Ready(Ok(std::mem::take(&mut this.buffer)));
+                return Poll::Ready(Ok(std::mem::take(&mut this.buffer)))
             }
 
             // Check if there is a pending requests. It might not exist if all
@@ -241,7 +241,7 @@ where
                     }
                     Err(error) => {
                         if error.is_channel_closed() {
-                            return Poll::Ready(Err(error.into()));
+                            return Poll::Ready(Err(error.into()))
                         }
 
                         this.on_error(error.into(), None);
@@ -310,7 +310,7 @@ mod tests {
         assert_eq!(
             client.times_requested(),
             // div_ceild
-            (headers.into_iter().filter(|h| !h.is_empty()).count() as u64 + 1) / 2
+            (headers.into_iter().filter(|h| !h.is_empty()).count() as u64).div_ceil(2)
         );
     }
 }

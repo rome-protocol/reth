@@ -54,6 +54,19 @@ const SAMPLE_IMPACT: f64 = 0.1;
 /// Amount of RTTs before timeout
 const TIMEOUT_SCALING: u32 = 3;
 
+/// Restricts the number of queued outgoing messages for larger responses:
+///  - Block Bodies
+///  - Receipts
+///  - Headers
+///  - `PooledTransactions`
+///
+/// With proper softlimits in place (2MB) this targets 10MB (4+1 * 2MB) of outgoing response data.
+///
+/// This parameter serves as backpressure for reading additional requests from the remote.
+/// Once we've queued up more responses than this, the session should priorotize message flushing
+/// before reading any more messages from the remote peer, throttling the peer.
+const MAX_QUEUED_OUTGOING_RESPONSES: usize = 4;
+
 /// The type that advances an established session by listening for incoming messages (from local
 /// node or read from connection) and emitting events back to the
 /// [`SessionManager`](super::SessionManager).
@@ -120,6 +133,11 @@ impl<N: NetworkPrimitives> ActiveSession<N> {
     pub fn shrink_to_fit(&mut self) {
         self.received_requests_from_remote.shrink_to_fit();
         self.queued_outgoing.shrink_to_fit();
+    }
+
+    /// Returns how many responses we've currently queued up.
+    fn queued_response_count(&self) -> usize {
+        self.queued_outgoing.messages.iter().filter(|m| m.is_response()).count()
     }
 
     /// Handle a message read from the connection.
@@ -203,7 +221,7 @@ impl<N: NetworkPrimitives> ActiveSession<N> {
                             sizes_len: msg.sizes.len(),
                         },
                         message: EthMessage::NewPooledTransactionHashes68(msg),
-                    };
+                    }
                 }
                 self.try_emit_broadcast(PeerMessage::PooledTransactions(msg.into())).into()
             }
@@ -286,8 +304,8 @@ impl<N: NetworkPrimitives> ActiveSession<N> {
 
     /// Returns the deadline timestamp at which the request times out
     fn request_deadline(&self) -> Instant {
-        Instant::now()
-            + Duration::from_millis(self.internal_request_timeout.load(Ordering::Relaxed))
+        Instant::now() +
+            Duration::from_millis(self.internal_request_timeout.load(Ordering::Relaxed))
     }
 
     /// Handle a Response to the peer
@@ -432,7 +450,7 @@ impl<N: NetworkPrimitives> ActiveSession<N> {
                     debug!(target: "net::session", ?id, remote_peer_id=?self.remote_peer_id, "timed out outgoing request");
                     req.timeout();
                 } else if now - req.timestamp > self.protocol_breach_request_timeout {
-                    return true;
+                    return true
                 }
             }
         }
@@ -456,7 +474,7 @@ impl<N: NetworkPrimitives> ActiveSession<N> {
         match tx.poll_reserve(cx) {
             Poll::Pending => {
                 self.terminate_message = Some((tx, msg));
-                return Some(Poll::Pending);
+                return Some(Poll::Pending)
             }
             Poll::Ready(Ok(())) => {
                 let _ = tx.send_item(msg);
@@ -478,11 +496,11 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
 
         // if the session is terminate we have to send the termination message before we can close
         if let Some(terminate) = this.poll_terminate_message(cx) {
-            return terminate;
+            return terminate
         }
 
         if this.is_disconnecting() {
-            return this.poll_disconnect(cx);
+            return this.poll_disconnect(cx)
         }
 
         // The receive loop can be CPU intensive since it involves message decoding which could take
@@ -503,7 +521,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                     Poll::Ready(None) => {
                         // this is only possible when the manager was dropped, in which case we also
                         // terminate this session
-                        return Poll::Ready(());
+                        return Poll::Ready(())
                     }
                     Poll::Ready(Some(cmd)) => {
                         progress = true;
@@ -518,7 +536,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                                 let reason =
                                     reason.unwrap_or(DisconnectReason::DisconnectRequested);
 
-                                return this.try_disconnect(reason, cx);
+                                return this.try_disconnect(reason, cx)
                             }
                             SessionCommand::Message(msg) => {
                                 this.on_internal_peer_message(msg);
@@ -562,11 +580,11 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                     if let Err(err) = res {
                         debug!(target: "net::session", %err, remote_peer_id=?this.remote_peer_id, "failed to send message");
                         // notify the manager
-                        return this.close_on_error(err, cx);
+                        return this.close_on_error(err, cx)
                     }
                 } else {
                     // no more messages to send over the wire
-                    break;
+                    break
                 }
             }
 
@@ -577,7 +595,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                 if budget == 0 {
                     // make sure we're woken up again
                     cx.waker().wake_by_ref();
-                    break 'main;
+                    break 'main
                 }
 
                 // try to resend the pending message that we could not send because the channel was
@@ -591,19 +609,42 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                         Poll::Ready(Err(_)) => return Poll::Ready(()),
                         Poll::Pending => {
                             this.pending_message_to_session = Some(msg);
-                            break 'receive;
+                            break 'receive
                         }
                     };
+                }
+
+                // check whether we should throttle incoming messages
+                if this.received_requests_from_remote.len() > MAX_QUEUED_OUTGOING_RESPONSES {
+                    // we're currently waiting for the responses to the peer's requests which aren't
+                    // queued as outgoing yet
+                    //
+                    // Note: we don't need to register the waker here because we polled the requests
+                    // above
+                    break 'receive
+                }
+
+                // we also need to check if we have multiple responses queued up
+                if this.queued_outgoing.messages.len() > MAX_QUEUED_OUTGOING_RESPONSES &&
+                    this.queued_response_count() > MAX_QUEUED_OUTGOING_RESPONSES
+                {
+                    // if we've queued up more responses than allowed, we don't poll for new
+                    // messages and break the receive loop early
+                    //
+                    // Note: we don't need to register the waker here because we still have
+                    // queued messages and the sink impl registered the waker because we've
+                    // already advanced it to `Pending` earlier
+                    break 'receive
                 }
 
                 match this.conn.poll_next_unpin(cx) {
                     Poll::Pending => break,
                     Poll::Ready(None) => {
                         if this.is_disconnecting() {
-                            break;
+                            break
                         }
                         debug!(target: "net::session", remote_peer_id=?this.remote_peer_id, "eth stream completed");
-                        return this.emit_disconnect(cx);
+                        return this.emit_disconnect(cx)
                     }
                     Poll::Ready(Some(res)) => {
                         match res {
@@ -617,7 +658,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                                     }
                                     OnIncomingMessageOutcome::BadMessage { error, message } => {
                                         debug!(target: "net::session", %error, msg=?message, remote_peer_id=?this.remote_peer_id, "received invalid protocol message");
-                                        return this.close_on_error(error, cx);
+                                        return this.close_on_error(error, cx)
                                     }
                                     OnIncomingMessageOutcome::NoCapacity(msg) => {
                                         // failed to send due to lack of capacity
@@ -627,7 +668,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
                             }
                             Err(err) => {
                                 debug!(target: "net::session", %err, remote_peer_id=?this.remote_peer_id, "failed to receive message");
-                                return this.close_on_error(err, cx);
+                                return this.close_on_error(err, cx)
                             }
                         }
                     }
@@ -635,7 +676,7 @@ impl<N: NetworkPrimitives> Future for ActiveSession<N> {
             }
 
             if !progress {
-                break 'main;
+                break 'main
             }
         }
 
@@ -738,6 +779,16 @@ pub(crate) enum OutgoingMessage<N: NetworkPrimitives> {
     Broadcast(EthBroadcastMessage<N>),
     /// A raw capability message
     Raw(RawCapabilityMessage),
+}
+
+impl<N: NetworkPrimitives> OutgoingMessage<N> {
+    /// Returns true if this is a response.
+    const fn is_response(&self) -> bool {
+        match self {
+            Self::Eth(msg) => msg.is_response(),
+            _ => false,
+        }
+    }
 }
 
 impl<N: NetworkPrimitives> From<EthMessage<N>> for OutgoingMessage<N> {
@@ -1139,7 +1190,7 @@ mod tests {
                 .try_send(ActiveSessionMessage::ProtocolBreach { peer_id: PeerId::random() })
                 .is_err()
             {
-                break;
+                break
             }
             num_fill_messages += 1;
         }

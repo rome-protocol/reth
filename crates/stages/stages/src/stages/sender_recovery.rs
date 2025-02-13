@@ -75,7 +75,7 @@ where
     /// entries in the [`TransactionSenders`][reth_db::tables::TransactionSenders] table.
     fn execute(&mut self, provider: &Provider, input: ExecInput) -> Result<ExecOutput, StageError> {
         if input.target_reached() {
-            return Ok(ExecOutput::done(input.checkpoint()));
+            return Ok(ExecOutput::done(input.checkpoint()))
         }
 
         let (tx_range, block_range, is_final_range) =
@@ -89,7 +89,7 @@ where
                 checkpoint: StageCheckpoint::new(end_block)
                     .with_entities_stage_checkpoint(stage_checkpoint(provider)?),
                 done: is_final_range,
-            });
+            })
         }
 
         // Acquire the cursor for inserting elements
@@ -204,7 +204,7 @@ where
                                     .into(),
                             ))
                         }
-                    };
+                    }
                 }
             };
             senders_cursor.append(tx_id, &sender)?;
@@ -269,7 +269,7 @@ where
                         // We exit early since we could not process this chunk.
                         let _ = recovered_senders_tx
                             .send(Err(Box::new(SenderRecoveryStageError::StageError(err.into()))));
-                        break;
+                        break
                     }
                 };
 
@@ -292,7 +292,7 @@ where
 
                         // Finish early
                         if is_err {
-                            break;
+                            break
                         }
                     }
                 });
@@ -313,9 +313,9 @@ fn recover_sender<T: SignedTransaction>(
     // value is greater than `secp256k1n / 2` if past EIP-2. There are transactions
     // pre-homestead which have large `s` values, so using [Signature::recover_signer] here
     // would not be backwards-compatible.
-    let sender = tx
-        .recover_signer_unchecked_with_buf(rlp_buf)
-        .ok_or(SenderRecoveryStageError::FailedRecovery(FailedSenderRecoveryError { tx: tx_id }))?;
+    let sender = tx.recover_signer_unchecked_with_buf(rlp_buf).map_err(|_| {
+        SenderRecoveryStageError::FailedRecovery(FailedSenderRecoveryError { tx: tx_id })
+    })?;
 
     Ok((tx_id, sender))
 }
@@ -661,7 +661,7 @@ mod tests {
                     let end_block = output.checkpoint.block_number;
 
                     if start_block > end_block {
-                        return Ok(());
+                        return Ok(())
                     }
 
                     let mut body_cursor =
@@ -672,9 +672,6 @@ mod tests {
                         for tx_id in body.tx_num_range() {
                             let transaction: TransactionSigned = provider
                                 .transaction_by_id_unhashed(tx_id)?
-                                .map(|tx| {
-                                    TransactionSigned::new_unhashed(tx.transaction, tx.signature)
-                                })
                                 .expect("no transaction entry");
                             let signer =
                                 transaction.recover_signer().expect("failed to recover signer");

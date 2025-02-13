@@ -1,7 +1,7 @@
 use crate::{
     AccountReader, BlockHashReader, ExecutionDataProvider, StateProvider, StateRootProvider,
 };
-use alloy_primitives::{map::B256HashMap, Address, BlockNumber, Bytes, B256};
+use alloy_primitives::{map::B256Map, Address, BlockNumber, Bytes, B256};
 use reth_primitives::{Account, Bytecode};
 use reth_storage_api::{HashedPostStateProvider, StateProofProvider, StorageRootProvider};
 use reth_storage_errors::provider::ProviderResult;
@@ -53,7 +53,7 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> BlockHashReader
     fn block_hash(&self, block_number: BlockNumber) -> ProviderResult<Option<B256>> {
         let block_hash = self.block_execution_data_provider.block_hash(block_number);
         if block_hash.is_some() {
-            return Ok(block_hash);
+            return Ok(block_hash)
         }
         self.state_provider.block_hash(block_number)
     }
@@ -177,7 +177,7 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> StateProofProvider
         &self,
         mut input: TrieInput,
         target: HashedPostState,
-    ) -> ProviderResult<B256HashMap<Bytes>> {
+    ) -> ProviderResult<B256Map<Bytes>> {
         let bundle_state = self.block_execution_data_provider.execution_outcome().state();
         input.prepend(self.hashed_post_state(bundle_state));
         self.state_provider.witness(input, target)
@@ -204,7 +204,7 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> StateProvider for BundleStat
             .execution_outcome()
             .storage(&account, u256_storage_key)
         {
-            return Ok(Some(value));
+            return Ok(Some(value))
         }
 
         self.state_provider.storage(account, storage_key)
@@ -214,7 +214,7 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> StateProvider for BundleStat
         if let Some(bytecode) =
             self.block_execution_data_provider.execution_outcome().bytecode(code_hash)
         {
-            return Ok(Some(bytecode));
+            return Ok(Some(bytecode))
         }
 
         self.state_provider.bytecode_by_hash(code_hash)

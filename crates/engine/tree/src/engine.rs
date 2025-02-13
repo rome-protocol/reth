@@ -7,10 +7,10 @@ use crate::{
 };
 use alloy_primitives::B256;
 use futures::{Stream, StreamExt};
-use reth_chain_state::ExecutedBlock;
+use reth_chain_state::ExecutedBlockWithTrieUpdates;
 use reth_engine_primitives::{BeaconConsensusEngineEvent, BeaconEngineMessage, EngineTypes};
-use reth_primitives::{NodePrimitives, RecoveredBlock};
-use reth_primitives_traits::Block;
+use reth_ethereum_primitives::EthPrimitives;
+use reth_primitives_traits::{Block, NodePrimitives, RecoveredBlock};
 use std::{
     collections::HashSet,
     fmt::Display,
@@ -95,7 +95,7 @@ where
                                 Poll::Ready(HandlerEvent::Event(ev))
                             }
                             HandlerEvent::FatalError => Poll::Ready(HandlerEvent::FatalError),
-                        };
+                        }
                     }
                     RequestHandlerEvent::Download(req) => {
                         // delegate download request to the downloader
@@ -109,7 +109,7 @@ where
                 // and delegate the request to the handler
                 self.handler.on_event(FromEngine::Request(req.into()));
                 // skip downloading in this iteration to allow the handler to process the request
-                continue;
+                continue
             }
 
             // advance the downloader
@@ -118,10 +118,10 @@ where
                     // delegate the downloaded blocks to the handler
                     self.handler.on_event(FromEngine::DownloadedBlocks(blocks));
                 }
-                continue;
+                continue
             }
 
-            return Poll::Pending;
+            return Poll::Pending
         }
     }
 }
@@ -201,7 +201,7 @@ where
 
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<RequestHandlerEvent<Self::Event>> {
         let Some(ev) = ready!(self.from_tree.poll_recv(cx)) else {
-            return Poll::Ready(RequestHandlerEvent::HandlerEvent(HandlerEvent::FatalError));
+            return Poll::Ready(RequestHandlerEvent::HandlerEvent(HandlerEvent::FatalError))
         };
 
         let ev = match ev {
@@ -245,7 +245,7 @@ pub enum EngineApiRequest<T: EngineTypes, N: NodePrimitives> {
     /// A request received from the consensus engine.
     Beacon(BeaconEngineMessage<T>),
     /// Request to insert an already executed block, e.g. via payload building.
-    InsertExecutedBlock(ExecutedBlock<N>),
+    InsertExecutedBlock(ExecutedBlockWithTrieUpdates<N>),
 }
 
 impl<T: EngineTypes, N: NodePrimitives> Display for EngineApiRequest<T, N> {
@@ -275,7 +275,7 @@ impl<T: EngineTypes, N: NodePrimitives> From<EngineApiRequest<T, N>>
 
 /// Events emitted by the engine API handler.
 #[derive(Debug)]
-pub enum EngineApiEvent<N: NodePrimitives = reth_primitives::EthPrimitives> {
+pub enum EngineApiEvent<N: NodePrimitives = EthPrimitives> {
     /// Event from the consensus engine.
     // TODO(mattsse): find a more appropriate name for this variant, consider phasing it out.
     BeaconConsensus(BeaconConsensusEngineEvent<N>),

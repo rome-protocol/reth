@@ -60,7 +60,7 @@ pub async fn connect_passthrough(
     p2p_stream
 }
 
-/// A Rplx subprotocol for testing
+/// An Rplx subprotocol for testing
 pub mod proto {
     use super::*;
     use crate::{protocol::Protocol, Capability};
@@ -140,7 +140,7 @@ pub mod proto {
         /// Decodes a `TestProtoMessage` from the given message buffer.
         pub fn decode_message(buf: &mut &[u8]) -> Option<Self> {
             if buf.is_empty() {
-                return None;
+                return None
             }
             let id = buf[0];
             buf.advance(1);

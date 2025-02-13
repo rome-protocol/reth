@@ -8,10 +8,9 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-use alloy_rpc_types::engine::{
-    ExecutionPayload, ExecutionPayloadSidecar, MaybeCancunPayloadFields, PayloadError,
-};
+use alloy_rpc_types::engine::{MaybeCancunPayloadFields, PayloadError};
 use reth_chainspec::EthereumHardforks;
+use reth_engine_primitives::ExecutionData;
 use reth_primitives::SealedBlock;
 use reth_primitives_traits::{Block, SignedTransaction};
 use std::sync::Arc;
@@ -69,20 +68,20 @@ impl<ChainSpec: EthereumHardforks> ExecutionPayloadValidator<ChainSpec> {
         if let Some(versioned_hashes) = cancun_fields.versioned_hashes() {
             if num_blob_versioned_hashes != versioned_hashes.len() {
                 // Number of blob versioned hashes does not match
-                return Err(PayloadError::InvalidVersionedHashes);
+                return Err(PayloadError::InvalidVersionedHashes)
             }
             // we can use `zip` safely here because we already compared their length
             for (payload_versioned_hash, block_versioned_hash) in
                 versioned_hashes.iter().zip(sealed_block.blob_versioned_hashes_iter())
             {
                 if payload_versioned_hash != block_versioned_hash {
-                    return Err(PayloadError::InvalidVersionedHashes);
+                    return Err(PayloadError::InvalidVersionedHashes)
                 }
             }
         } else {
             // No Cancun fields, if block includes any blobs, this is an error
             if num_blob_versioned_hashes > 0 {
-                return Err(PayloadError::InvalidVersionedHashes);
+                return Err(PayloadError::InvalidVersionedHashes)
             }
         }
 
@@ -114,9 +113,10 @@ impl<ChainSpec: EthereumHardforks> ExecutionPayloadValidator<ChainSpec> {
     /// <https://github.com/ethereum/execution-apis/blob/fe8e13c288c592ec154ce25c534e26cb7ce0530d/src/engine/cancun.md#specification>
     pub fn ensure_well_formed_payload<T: SignedTransaction>(
         &self,
-        payload: ExecutionPayload,
-        sidecar: ExecutionPayloadSidecar,
+        payload: ExecutionData,
     ) -> Result<SealedBlock<reth_primitives::Block<T>>, PayloadError> {
+        let ExecutionData { payload, sidecar } = payload;
+
         let expected_hash = payload.block_hash();
 
         // First parse the block
@@ -127,51 +127,51 @@ impl<ChainSpec: EthereumHardforks> ExecutionPayloadValidator<ChainSpec> {
             return Err(PayloadError::BlockHash {
                 execution: sealed_block.hash(),
                 consensus: expected_hash,
-            });
+            })
         }
 
         if self.is_cancun_active_at_timestamp(sealed_block.timestamp) {
             if sealed_block.blob_gas_used.is_none() {
                 // cancun active but blob gas used not present
-                return Err(PayloadError::PostCancunBlockWithoutBlobGasUsed);
+                return Err(PayloadError::PostCancunBlockWithoutBlobGasUsed)
             }
             if sealed_block.excess_blob_gas.is_none() {
                 // cancun active but excess blob gas not present
-                return Err(PayloadError::PostCancunBlockWithoutExcessBlobGas);
+                return Err(PayloadError::PostCancunBlockWithoutExcessBlobGas)
             }
             if sidecar.cancun().is_none() {
                 // cancun active but cancun fields not present
-                return Err(PayloadError::PostCancunWithoutCancunFields);
+                return Err(PayloadError::PostCancunWithoutCancunFields)
             }
         } else {
             if sealed_block.body().has_eip4844_transactions() {
                 // cancun not active but blob transactions present
-                return Err(PayloadError::PreCancunBlockWithBlobTransactions);
+                return Err(PayloadError::PreCancunBlockWithBlobTransactions)
             }
             if sealed_block.blob_gas_used.is_some() {
                 // cancun not active but blob gas used present
-                return Err(PayloadError::PreCancunBlockWithBlobGasUsed);
+                return Err(PayloadError::PreCancunBlockWithBlobGasUsed)
             }
             if sealed_block.excess_blob_gas.is_some() {
                 // cancun not active but excess blob gas present
-                return Err(PayloadError::PreCancunBlockWithExcessBlobGas);
+                return Err(PayloadError::PreCancunBlockWithExcessBlobGas)
             }
             if sidecar.cancun().is_some() {
                 // cancun not active but cancun fields present
-                return Err(PayloadError::PreCancunWithCancunFields);
+                return Err(PayloadError::PreCancunWithCancunFields)
             }
         }
 
         let shanghai_active = self.is_shanghai_active_at_timestamp(sealed_block.timestamp);
         if !shanghai_active && sealed_block.body().withdrawals.is_some() {
             // shanghai not active but withdrawals present
-            return Err(PayloadError::PreShanghaiBlockWithWithdrawals);
+            return Err(PayloadError::PreShanghaiBlockWithWithdrawals)
         }
 
-        if !self.is_prague_active_at_timestamp(sealed_block.timestamp)
-            && sealed_block.body().has_eip7702_transactions()
+        if !self.is_prague_active_at_timestamp(sealed_block.timestamp) &&
+            sealed_block.body().has_eip7702_transactions()
         {
-            return Err(PayloadError::PrePragueBlockWithEip7702Transactions);
+            return Err(PayloadError::PrePragueBlockWithEip7702Transactions)
         }
 
         // EIP-4844 checks

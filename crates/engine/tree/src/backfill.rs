@@ -124,7 +124,7 @@ impl<N: ProviderNodeTypes> PipelineSync<N> {
                 "Pipeline target cannot be zero hash."
             );
             // precaution to never sync to the zero hash
-            return;
+            return
         }
         self.pending_pipeline_target = Some(target);
     }
@@ -187,14 +187,14 @@ impl<N: ProviderNodeTypes> BackfillSync for PipelineSync<N> {
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<BackfillEvent> {
         // try to spawn a pipeline if a target is set
         if let Some(event) = self.try_spawn_pipeline() {
-            return Poll::Ready(event);
+            return Poll::Ready(event)
         }
 
         // make sure we poll the pipeline if it's active, and return any ready pipeline events
         if self.is_pipeline_active() {
             // advance the pipeline
             if let Poll::Ready(event) = self.poll_pipeline(cx) {
-                return Poll::Ready(event);
+                return Poll::Ready(event)
             }
         }
 
@@ -231,13 +231,13 @@ mod tests {
     use super::*;
     use crate::test_utils::{insert_headers_into_client, TestPipelineBuilder};
     use alloy_consensus::Header;
-    use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT;
+    use alloy_eips::eip1559::ETHEREUM_BLOCK_GAS_LIMIT_30M;
     use alloy_primitives::{BlockNumber, B256};
     use assert_matches::assert_matches;
     use futures::poll;
     use reth_chainspec::{ChainSpecBuilder, MAINNET};
     use reth_network_p2p::test_utils::TestFullBlockClient;
-    use reth_primitives::SealedHeader;
+    use reth_primitives_traits::SealedHeader;
     use reth_provider::test_utils::MockNodeTypesWithDB;
     use reth_stages::ExecOutput;
     use reth_stages_api::StageCheckpoint;
@@ -271,7 +271,7 @@ mod tests {
             let client = TestFullBlockClient::default();
             let header = Header {
                 base_fee_per_gas: Some(7),
-                gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
+                gas_limit: ETHEREUM_BLOCK_GAS_LIMIT_30M,
                 ..Default::default()
             };
             let header = SealedHeader::seal_slow(header);

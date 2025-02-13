@@ -43,7 +43,7 @@ pub struct PendingPool<T: TransactionOrdering> {
     independent_transactions: FxHashMap<SenderId, PendingTransaction<T>>,
     /// Keeps track of the size of this pool.
     ///
-    /// See also [`PoolTransaction::size`](crate::traits::PoolTransaction::size).
+    /// See also [`reth_primitives_traits::InMemorySize::size`].
     size_of: SizeTracker,
     /// Used to broadcast new transactions that have been added to the `PendingPool` to existing
     /// `static_files` of this pool.
@@ -98,7 +98,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
     /// provides a way to mark transactions that the consumer of this iterator considers invalid. In
     /// which case the transaction's subgraph is also automatically marked invalid, See (1.).
     /// Invalid transactions are skipped.
-    pub(crate) fn best(&self) -> BestTransactions<T> {
+    pub fn best(&self) -> BestTransactions<T> {
         BestTransactions {
             all: self.by_id.clone(),
             independent: self.independent_transactions.values().cloned().collect(),
@@ -183,7 +183,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
                 // Remove all dependent transactions.
                 'this: while let Some((next_id, next_tx)) = transactions_iter.peek() {
                     if next_id.sender != id.sender {
-                        break 'this;
+                        break 'this
                     }
                     removed.push(Arc::clone(&next_tx.transaction));
                     transactions_iter.next();
@@ -225,7 +225,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
                 // Remove all dependent transactions.
                 'this: while let Some((next_id, next_tx)) = transactions_iter.peek() {
                     if next_id.sender != id.sender {
-                        break 'this;
+                        break 'this
                     }
                     removed.push(Arc::clone(&next_tx.transaction));
                     transactions_iter.next();
@@ -413,8 +413,8 @@ impl<T: TransactionOrdering> PendingPool<T> {
             // loop through the highest nonces set, removing transactions until we reach the limit
             for tx in worst_transactions {
                 // return early if the pool is under limits
-                if !limit.is_exceeded(original_length - total_removed, original_size - total_size)
-                    || non_local_senders == 0
+                if !limit.is_exceeded(original_length - total_removed, original_size - total_size) ||
+                    non_local_senders == 0
                 {
                     // need to remove remaining transactions before exiting
                     for id in &removed {
@@ -423,7 +423,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
                         }
                     }
 
-                    return;
+                    return
                 }
 
                 if !remove_locals && tx.transaction.is_local() {
@@ -431,7 +431,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
                     if local_senders.insert(sender_id) {
                         non_local_senders -= 1;
                     }
-                    continue;
+                    continue
                 }
 
                 total_size += tx.transaction.size();
@@ -449,7 +449,7 @@ impl<T: TransactionOrdering> PendingPool<T> {
             // return if either the pool is under limits or there are no more _eligible_
             // transactions to remove
             if !self.exceeds(limit) || non_local_senders == 0 {
-                return;
+                return
             }
         }
     }
@@ -471,13 +471,13 @@ impl<T: TransactionOrdering> PendingPool<T> {
         let mut removed = Vec::new();
         // return early if the pool is already under the limits
         if !self.exceeds(&limit) {
-            return removed;
+            return removed
         }
 
         // first truncate only non-local transactions, returning if the pool end up under the limit
         self.remove_to_limit(&limit, false, &mut removed);
         if !self.exceeds(&limit) {
-            return removed;
+            return removed
         }
 
         // now repeat for local transactions, since local transactions must be removed now for the
@@ -613,6 +613,7 @@ mod tests {
         test_utils::{MockOrdering, MockTransaction, MockTransactionFactory, MockTransactionSet},
         PoolTransaction,
     };
+    use alloy_consensus::Transaction;
     use alloy_primitives::address;
     use reth_primitives::TxType;
     use std::collections::HashSet;

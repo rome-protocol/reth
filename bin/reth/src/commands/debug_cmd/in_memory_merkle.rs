@@ -15,14 +15,14 @@ use reth_cli_commands::common::{AccessRights, CliNodeTypes, Environment, Environ
 use reth_cli_runner::CliContext;
 use reth_cli_util::get_secret_key;
 use reth_config::Config;
-use reth_errors::BlockValidationError;
+use reth_ethereum_primitives::EthPrimitives;
 use reth_evm::execute::{BlockExecutorProvider, Executor};
 use reth_execution_types::ExecutionOutcome;
 use reth_network::{BlockDownloaderProvider, NetworkHandle};
 use reth_network_api::NetworkInfo;
 use reth_node_api::NodePrimitives;
 use reth_node_ethereum::{consensus::EthBeaconConsensus, EthExecutorProvider};
-use reth_primitives::{EthPrimitives, SealedBlock};
+use reth_primitives_traits::SealedBlock;
 use reth_provider::{
     providers::ProviderNodeTypes, AccountExtReader, ChainSpecProvider, DatabaseProviderFactory,
     HashedPostStateProvider, HashingWriter, LatestStateProviderRef, OriginalValuesKnown,
@@ -33,10 +33,9 @@ use reth_stages::StageId;
 use reth_tasks::TaskExecutor;
 use reth_trie::StateRoot;
 use reth_trie_db::DatabaseStateRoot;
-use rome_sdk::RomeConfig;
 use std::{path::PathBuf, sync::Arc};
 use tracing::*;
-
+use rome_sdk::RomeConfig;
 /// `reth debug in-memory-merkle` command
 /// This debug routine requires that the node is positioned at the block before the target.
 /// The script will then download the block from p2p network and attempt to calculate and verify
@@ -63,9 +62,9 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         N: ProviderNodeTypes<
             ChainSpec = C::ChainSpec,
             Primitives: NodePrimitives<
-                Block = reth_primitives::Block,
-                Receipt = reth_primitives::Receipt,
-                BlockHeader = reth_primitives::Header,
+                Block = reth_ethereum_primitives::Block,
+                Receipt = reth_ethereum_primitives::Receipt,
+                BlockHeader = alloy_consensus::Header,
             >,
         >,
     >(
@@ -148,9 +147,8 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         let state_provider = LatestStateProviderRef::new(&provider);
         let db = StateProviderDatabase::new(&state_provider);
         let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
-        let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config)
-            .await
-            .executor(db);
+
+        let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await.executor(db);
         let block_execution_output = executor.execute(&block.clone().try_recover()?)?;
         let execution_outcome = ExecutionOutcome::from((block_execution_output, block.number()));
 
@@ -162,15 +160,13 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
         if in_memory_state_root == block.state_root() {
             info!(target: "reth::cli", state_root = ?in_memory_state_root, "Computed in-memory state root matches");
-            return Ok(());
+            return Ok(())
         }
 
         let provider_rw = provider_factory.database_provider_rw()?;
 
         // Insert block, state and hashes
-        provider_rw.insert_historical_block(
-            block.clone().try_recover().map_err(|_| BlockValidationError::SenderRecoveryError)?,
-        )?;
+        provider_rw.insert_historical_block(block.clone().try_recover()?)?;
         provider_rw.write_state(
             &execution_outcome,
             OriginalValuesKnown::No,
@@ -208,8 +204,8 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             match (in_mem_updates_iter.next(), incremental_updates_iter.next()) {
                 (Some(in_mem), Some(incr)) => {
                     similar_asserts::assert_eq!(in_mem.0, incr.0, "Nibbles don't match");
-                    if in_mem.1 != incr.1
-                        && in_mem.0.len() > self.skip_node_depth.unwrap_or_default()
+                    if in_mem.1 != incr.1 &&
+                        in_mem.0.len() > self.skip_node_depth.unwrap_or_default()
                     {
                         in_mem_mismatched.push(in_mem);
                         incremental_mismatched.push(incr);

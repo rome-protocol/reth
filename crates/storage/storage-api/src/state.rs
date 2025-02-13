@@ -2,6 +2,7 @@ use super::{
     AccountReader, BlockHashReader, BlockIdReader, StateProofProvider, StateRootProvider,
     StorageRootProvider,
 };
+use alloc::boxed::Box;
 use alloy_consensus::constants::KECCAK_EMPTY;
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_primitives::{Address, BlockHash, BlockNumber, StorageKey, StorageValue, B256, U256};
@@ -50,10 +51,10 @@ pub trait StateProvider:
 
         if let Some(code_hash) = acc.bytecode_hash {
             if code_hash == KECCAK_EMPTY {
-                return Ok(None);
+                return Ok(None)
             }
             // Get the code from the code hash
-            return self.bytecode_by_hash(&code_hash);
+            return self.bytecode_by_hash(&code_hash)
         }
 
         // Return `None` if no code hash is set

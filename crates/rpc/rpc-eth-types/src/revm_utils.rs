@@ -5,10 +5,11 @@ use alloy_rpc_types_eth::{
     state::{AccountOverride, StateOverride},
     BlockOverrides,
 };
+use reth_evm::TransactionEnv;
 use revm::{
     db::CacheDB,
     precompile::{PrecompileSpecId, Precompiles},
-    primitives::{db::DatabaseRef, Bytecode, SpecId, TxEnv},
+    primitives::{db::DatabaseRef, Bytecode, SpecId},
     Database,
 };
 use revm_primitives::BlockEnv;
@@ -32,26 +33,26 @@ pub fn get_precompiles(spec_id: SpecId) -> impl IntoIterator<Item = Address> {
 ///
 /// Note: this takes the mut [Database] trait because the loaded sender can be reused for the
 /// following operation like `eth_call`.
-pub fn caller_gas_allowance<DB>(db: &mut DB, env: &TxEnv) -> EthResult<U256>
+pub fn caller_gas_allowance<DB>(db: &mut DB, env: &impl TransactionEnv) -> EthResult<U256>
 where
     DB: Database,
     EthApiError: From<<DB as Database>::Error>,
 {
     // Get the caller account.
-    let caller = db.basic(env.caller)?;
+    let caller = db.basic(env.caller())?;
     // Get the caller balance.
     let balance = caller.map(|acc| acc.balance).unwrap_or_default();
     // Get transaction value.
-    let value = env.value;
+    let value = env.value();
     // Subtract transferred value from the caller balance. Return error if the caller has
     // insufficient funds.
     let balance = balance
-        .checked_sub(env.value)
+        .checked_sub(env.value())
         .ok_or_else(|| RpcInvalidTransactionError::InsufficientFunds { cost: value, balance })?;
 
     Ok(balance
         // Calculate the amount of gas the caller can afford with the specified gas price.
-        .checked_div(env.gas_price)
+        .checked_div(env.gas_price())
         // This will be 0 if gas price is 0. It is fine, because we check it before.
         .unwrap_or_default())
 }
@@ -114,17 +115,17 @@ impl CallFees {
                     let max_priority_fee_per_gas = max_priority_fee_per_gas.unwrap_or(U256::ZERO);
 
                     // only enforce the fee cap if provided input is not zero
-                    if !(max_fee.is_zero() && max_priority_fee_per_gas.is_zero())
-                        && max_fee < block_base_fee
+                    if !(max_fee.is_zero() && max_priority_fee_per_gas.is_zero()) &&
+                        max_fee < block_base_fee
                     {
                         // `base_fee_per_gas` is greater than the `max_fee_per_gas`
-                        return Err(RpcInvalidTransactionError::FeeCapTooLow.into());
+                        return Err(RpcInvalidTransactionError::FeeCapTooLow.into())
                     }
                     if max_fee < max_priority_fee_per_gas {
                         return Err(
                             // `max_priority_fee_per_gas` is greater than the `max_fee_per_gas`
                             RpcInvalidTransactionError::TipAboveFeeCap.into(),
-                        );
+                        )
                     }
                     // ref <https://github.com/ethereum/go-ethereum/blob/0dd173a727dd2d2409b8e401b22e85d20c25b71f/internal/ethapi/transaction_args.go#L446-L446>
                     Ok(min(
@@ -179,7 +180,7 @@ impl CallFees {
                 // Ensure blob_hashes are present
                 if !has_blob_hashes {
                     // Blob transaction but no blob hashes
-                    return Err(RpcInvalidTransactionError::BlobTransactionMissingBlobHashes.into());
+                    return Err(RpcInvalidTransactionError::BlobTransactionMissingBlobHashes.into())
                 }
 
                 Ok(Self {
@@ -271,7 +272,10 @@ where
         account_info.nonce = nonce;
     }
     if let Some(code) = account_override.code {
-        account_info.code = Some(Bytecode::new_raw(code));
+        account_info.code = Some(
+            Bytecode::new_raw_checked(code)
+                .map_err(|err| EthApiError::InvalidBytecode(err.to_string()))?,
+        );
     }
     if let Some(balance) = account_override.balance {
         account_info.balance = balance;

@@ -9,17 +9,14 @@ use crate::{
 };
 use alloy_primitives::bytes::Bytes;
 use derive_more::{Deref, DerefMut};
-use reth_eth_wire_types::{EthMessage, EthNetworkPrimitives, NetworkPrimitives};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
 };
 
-/// A Capability message consisting of the message-id and the payload
+/// A Capability message consisting of the message-id and the payload.
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RawCapabilityMessage {
     /// Identifier of the message.
     pub id: usize,
@@ -37,25 +34,10 @@ impl RawCapabilityMessage {
     ///
     /// Caller must ensure that the rlp encoded `payload` matches the given `id`.
     ///
-    /// See also  [`EthMessage`]
+    /// See also  [`EthMessage`](crate::EthMessage)
     pub const fn eth(id: EthMessageID, payload: Bytes) -> Self {
         Self::new(id as usize, payload)
     }
-}
-
-/// Various protocol related event types bubbled up from a session that need to be handled by the
-/// network.
-#[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum CapabilityMessage<N: NetworkPrimitives = EthNetworkPrimitives> {
-    /// Eth sub-protocol message.
-    #[cfg_attr(
-        feature = "serde",
-        serde(bound = "EthMessage<N>: Serialize + serde::de::DeserializeOwned")
-    )]
-    Eth(EthMessage<N>),
-    /// Any other or manually crafted eth message.
-    Other(RawCapabilityMessage),
 }
 
 /// This represents a shared capability, its version, and its message id offset.
@@ -103,7 +85,7 @@ impl SharedCapability {
         messages: u8,
     ) -> Result<Self, SharedCapabilityError> {
         if offset <= MAX_RESERVED_MESSAGE_ID {
-            return Err(SharedCapabilityError::ReservedMessageIdOffset(offset));
+            return Err(SharedCapabilityError::ReservedMessageIdOffset(offset))
         }
 
         match name {
@@ -259,12 +241,12 @@ impl SharedCapabilities {
         let mut cap = iter.next()?;
         if offset < cap.message_id_offset() {
             // reserved message id space
-            return None;
+            return None
         }
 
         for next in iter {
             if offset < next.message_id_offset() {
-                return Some(cap);
+                return Some(cap)
             }
             cap = next
         }
@@ -348,7 +330,7 @@ pub fn shared_capability_offsets(
 
     // disconnect if we don't share any capabilities
     if shared_capabilities.is_empty() {
-        return Err(P2PStreamError::HandshakeError(P2PHandshakeError::NoSharedCapabilities));
+        return Err(P2PStreamError::HandshakeError(P2PHandshakeError::NoSharedCapabilities))
     }
 
     // order versions based on capability name (alphabetical) and select offsets based on
@@ -372,7 +354,7 @@ pub fn shared_capability_offsets(
     }
 
     if shared_with_offsets.is_empty() {
-        return Err(P2PStreamError::HandshakeError(P2PHandshakeError::NoSharedCapabilities));
+        return Err(P2PStreamError::HandshakeError(P2PHandshakeError::NoSharedCapabilities))
     }
 
     Ok(shared_with_offsets)

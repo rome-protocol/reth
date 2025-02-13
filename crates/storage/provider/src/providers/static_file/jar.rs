@@ -163,7 +163,7 @@ impl<N: NodePrimitives<BlockHeader: Value>> HeaderProvider for StaticFileJarProv
             {
                 let sealed = SealedHeader::new(header, hash);
                 if !predicate(&sealed) {
-                    break;
+                    break
                 }
                 headers.push(sealed);
             }
@@ -299,15 +299,14 @@ impl<N: NodePrimitives<SignedTx: Decompress + SignedTransaction>> TransactionsPr
         range: impl RangeBounds<TxNumber>,
     ) -> ProviderResult<Vec<Address>> {
         let txs = self.transactions_by_tx_range(range)?;
-        reth_primitives_traits::transaction::recover::recover_signers(&txs)
-            .ok_or(ProviderError::SenderRecoveryError)
+        Ok(reth_primitives_traits::transaction::recover::recover_signers(&txs)?)
     }
 
     fn transaction_sender(&self, num: TxNumber) -> ProviderResult<Option<Address>> {
         Ok(self
             .cursor()?
             .get_one::<TransactionMask<Self::Transaction>>(num.into())?
-            .and_then(|tx| tx.recover_signer()))
+            .and_then(|tx| tx.recover_signer().ok()))
     }
 }
 
@@ -323,7 +322,7 @@ impl<N: NodePrimitives<SignedTx: Decompress + SignedTransaction, Receipt: Decomp
     fn receipt_by_hash(&self, hash: TxHash) -> ProviderResult<Option<Self::Receipt>> {
         if let Some(tx_static_file) = &self.auxiliary_jar {
             if let Some(num) = tx_static_file.transaction_id(hash)? {
-                return self.receipt(num);
+                return self.receipt(num)
             }
         }
         Ok(None)
@@ -365,7 +364,7 @@ impl<N: NodePrimitives> WithdrawalsProvider for StaticFileJarProvider<'_, N> {
             return Ok(self
                 .cursor()?
                 .get_one::<WithdrawalsMask>(num.into())?
-                .map(|s| s.withdrawals));
+                .and_then(|s| s.withdrawals))
         }
         // Only accepts block number queries
         Err(ProviderError::UnsupportedProvider)
@@ -378,7 +377,7 @@ impl<N: FullNodePrimitives<BlockHeader: Value>> OmmersProvider for StaticFileJar
             return Ok(self
                 .cursor()?
                 .get_one::<OmmersMask<Self::Header>>(num.into())?
-                .map(|s| s.ommers));
+                .map(|s| s.ommers))
         }
         // Only accepts block number queries
         Err(ProviderError::UnsupportedProvider)

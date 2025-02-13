@@ -12,7 +12,7 @@ use metrics::{gauge, Label};
 use reth_db_api::{
     cursor::{DbCursorRO, DbCursorRW},
     database::Database,
-    database_metrics::{DatabaseMetadata, DatabaseMetadataValue, DatabaseMetrics},
+    database_metrics::DatabaseMetrics,
     models::ClientVersion,
     transaction::{DbTx, DbTxMut},
 };
@@ -50,7 +50,7 @@ const DEFAULT_MAX_READERS: u64 = 32_000;
 const MAX_SAFE_READER_SPACE: usize = 10 * GIGABYTE;
 
 /// Environment used when opening a MDBX environment. RO/RW.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DatabaseEnvKind {
     /// Read-only MDBX environment.
     RO,
@@ -276,12 +276,6 @@ impl DatabaseMetrics for DatabaseEnv {
     }
 }
 
-impl DatabaseMetadata for DatabaseEnv {
-    fn metadata(&self) -> DatabaseMetadataValue {
-        DatabaseMetadataValue::new(self.freelist().ok())
-    }
-}
-
 impl DatabaseEnv {
     /// Opens the database at the specified path with the given `EnvKind`.
     ///
@@ -421,7 +415,7 @@ impl DatabaseEnv {
                     LogLevel::Extra => 7,
                 });
             } else {
-                return Err(DatabaseError::LogLevelUnavailable(log_level));
+                return Err(DatabaseError::LogLevelUnavailable(log_level))
             }
         }
 
@@ -469,7 +463,7 @@ impl DatabaseEnv {
     /// Records version that accesses the database with write privileges.
     pub fn record_client_version(&self, version: ClientVersion) -> Result<(), DatabaseError> {
         if version.is_empty() {
-            return Ok(());
+            return Ok(())
         }
 
         let tx = self.tx_mut()?;

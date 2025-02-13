@@ -1,4 +1,4 @@
-//! A Protocol defines a P2P subprotocol in a `RLPx` connection
+//! A Protocol defines a P2P subprotocol in an `RLPx` connection
 
 use crate::{Capability, EthMessageID, EthVersion};
 
@@ -54,7 +54,7 @@ impl Protocol {
     /// The number of values needed to represent all message IDs of capability.
     pub fn messages(&self) -> u8 {
         if self.cap.is_eth() {
-            return EthMessageID::max() + 1;
+            return EthMessageID::max() + 1
         }
         self.messages
     }

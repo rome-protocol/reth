@@ -46,7 +46,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.range.is_empty() {
-            return None;
+            return None
         }
 
         Some(self.execute_range())
@@ -78,7 +78,6 @@ where
         let mut executor = self.executor.batch_executor(StateProviderDatabase::new(
             self.provider.history_by_block_number(self.range.start().saturating_sub(1))?,
         ));
-        executor.set_prune_modes(self.prune_modes.clone());
 
         let mut fetch_block_duration = Duration::default();
         let mut execution_duration = Duration::default();
@@ -127,7 +126,7 @@ where
                 cumulative_gas,
                 batch_start.elapsed(),
             ) {
-                break;
+                break
             }
         }
 
@@ -228,98 +227,98 @@ impl<E, P> From<BackfillJob<E, P>> for SingleBlockBackfillJob<E, P> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::{
-//         backfill::test_utils::{blocks_and_execution_outputs, chain_spec, to_execution_outcome},
-//         BackfillJobFactory,
-//     };
-//     use reth_db_common::init::init_genesis;
-//     use reth_evm_ethereum::execute::EthExecutorProvider;
-//     use reth_primitives_traits::crypto::secp256k1::public_key_to_address;
-//     use reth_provider::{
-//         providers::BlockchainProvider, test_utils::create_test_provider_factory_with_chain_spec,
-//     };
-//     use reth_testing_utils::generators;
-//     use secp256k1::Keypair;
+#[cfg(test)]
+mod tests {
+    use crate::{
+        backfill::test_utils::{blocks_and_execution_outputs, chain_spec, to_execution_outcome},
+        BackfillJobFactory,
+    };
+    use reth_db_common::init::init_genesis;
+    use reth_evm_ethereum::execute::EthExecutorProvider;
+    use reth_primitives_traits::crypto::secp256k1::public_key_to_address;
+    use reth_provider::{
+        providers::BlockchainProvider, test_utils::create_test_provider_factory_with_chain_spec,
+    };
+    use reth_testing_utils::generators;
+    use secp256k1::Keypair;
 
-//     #[test]
-//     fn test_backfill() -> eyre::Result<()> {
-//         reth_tracing::init_test_tracing();
+    #[test]
+    fn test_backfill() -> eyre::Result<()> {
+        reth_tracing::init_test_tracing();
 
-//         // Create a key pair for the sender
-//         let key_pair = Keypair::new_global(&mut generators::rng());
-//         let address = public_key_to_address(key_pair.public_key());
+        // Create a key pair for the sender
+        let key_pair = Keypair::new_global(&mut generators::rng());
+        let address = public_key_to_address(key_pair.public_key());
 
-//         let chain_spec = chain_spec(address);
+        let chain_spec = chain_spec(address);
 
-//         let executor = EthExecutorProvider::ethereum(chain_spec.clone());
-//         let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
-//         init_genesis(&provider_factory)?;
-//         let blockchain_db = BlockchainProvider::new(provider_factory.clone())?;
+        let executor = EthExecutorProvider::ethereum(chain_spec.clone());
+        let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
+        init_genesis(&provider_factory)?;
+        let blockchain_db = BlockchainProvider::new(provider_factory.clone())?;
 
-//         let blocks_and_execution_outputs =
-//             blocks_and_execution_outputs(provider_factory, chain_spec, key_pair)?;
-//         let (block, block_execution_output) = blocks_and_execution_outputs.first().unwrap();
-//         let execution_outcome = to_execution_outcome(block.number, block_execution_output);
+        let blocks_and_execution_outputs =
+            blocks_and_execution_outputs(provider_factory, chain_spec, key_pair)?;
+        let (block, block_execution_output) = blocks_and_execution_outputs.first().unwrap();
+        let execution_outcome = to_execution_outcome(block.number, block_execution_output);
 
-//         // Backfill the first block
-//         let factory = BackfillJobFactory::new(executor, blockchain_db);
-//         let job = factory.backfill(1..=1);
-//         let chains = job.collect::<Result<Vec<_>, _>>()?;
+        // Backfill the first block
+        let factory = BackfillJobFactory::new(executor, blockchain_db);
+        let job = factory.backfill(1..=1);
+        let chains = job.collect::<Result<Vec<_>, _>>()?;
 
-//         // Assert that the backfill job produced the same chain as we got before when we were
-//         // executing only the first block
-//         assert_eq!(chains.len(), 1);
-//         let mut chain = chains.into_iter().next().unwrap();
-//         chain.execution_outcome_mut().bundle.reverts.sort();
-//         assert_eq!(chain.blocks(), &[(1, block.clone())].into());
-//         assert_eq!(chain.execution_outcome(), &execution_outcome);
+        // Assert that the backfill job produced the same chain as we got before when we were
+        // executing only the first block
+        assert_eq!(chains.len(), 1);
+        let mut chain = chains.into_iter().next().unwrap();
+        chain.execution_outcome_mut().bundle.reverts.sort();
+        assert_eq!(chain.blocks(), &[(1, block.clone())].into());
+        assert_eq!(chain.execution_outcome(), &execution_outcome);
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
-//     #[test]
-//     fn test_single_block_backfill() -> eyre::Result<()> {
-//         reth_tracing::init_test_tracing();
+    #[test]
+    fn test_single_block_backfill() -> eyre::Result<()> {
+        reth_tracing::init_test_tracing();
 
-//         // Create a key pair for the sender
-//         let key_pair = Keypair::new_global(&mut generators::rng());
-//         let address = public_key_to_address(key_pair.public_key());
+        // Create a key pair for the sender
+        let key_pair = Keypair::new_global(&mut generators::rng());
+        let address = public_key_to_address(key_pair.public_key());
 
-//         let chain_spec = chain_spec(address);
+        let chain_spec = chain_spec(address);
 
-//         let executor = EthExecutorProvider::ethereum(chain_spec.clone());
-//         let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
-//         init_genesis(&provider_factory)?;
-//         let blockchain_db = BlockchainProvider::new(provider_factory.clone())?;
+        let executor = EthExecutorProvider::ethereum(chain_spec.clone());
+        let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
+        init_genesis(&provider_factory)?;
+        let blockchain_db = BlockchainProvider::new(provider_factory.clone())?;
 
-//         let blocks_and_execution_outcomes =
-//             blocks_and_execution_outputs(provider_factory, chain_spec, key_pair)?;
+        let blocks_and_execution_outcomes =
+            blocks_and_execution_outputs(provider_factory, chain_spec, key_pair)?;
 
-//         // Backfill the first block
-//         let factory = BackfillJobFactory::new(executor, blockchain_db);
-//         let job = factory.backfill(1..=1);
-//         let single_job = job.into_single_blocks();
-//         let block_execution_it = single_job.into_iter();
+        // Backfill the first block
+        let factory = BackfillJobFactory::new(executor, blockchain_db);
+        let job = factory.backfill(1..=1);
+        let single_job = job.into_single_blocks();
+        let block_execution_it = single_job.into_iter();
 
-//         // Assert that the backfill job only produces a single block
-//         let blocks_and_outcomes = block_execution_it.collect::<Vec<_>>();
-//         assert_eq!(blocks_and_outcomes.len(), 1);
+        // Assert that the backfill job only produces a single block
+        let blocks_and_outcomes = block_execution_it.collect::<Vec<_>>();
+        assert_eq!(blocks_and_outcomes.len(), 1);
 
-//         // Assert that the backfill job single block iterator produces the expected output for each
-//         // block
-//         for (i, res) in blocks_and_outcomes.into_iter().enumerate() {
-//             let (block, mut execution_output) = res?;
-//             execution_output.state.reverts.sort();
+        // Assert that the backfill job single block iterator produces the expected output for each
+        // block
+        for (i, res) in blocks_and_outcomes.into_iter().enumerate() {
+            let (block, mut execution_output) = res?;
+            execution_output.state.reverts.sort();
 
-//             let expected_block = blocks_and_execution_outcomes[i].0.clone();
-//             let expected_output = &blocks_and_execution_outcomes[i].1;
+            let expected_block = blocks_and_execution_outcomes[i].0.clone();
+            let expected_output = &blocks_and_execution_outcomes[i].1;
 
-//             assert_eq!(block, expected_block);
-//             assert_eq!(&execution_output, expected_output);
-//         }
+            assert_eq!(block, expected_block);
+            assert_eq!(&execution_output, expected_output);
+        }
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

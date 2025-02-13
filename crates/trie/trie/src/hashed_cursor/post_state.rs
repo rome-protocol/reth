@@ -1,11 +1,9 @@
 use super::{HashedCursor, HashedCursorFactory, HashedStorageCursor};
-use crate::{
-    forward_cursor::ForwardInMemoryCursor, HashedAccountsSorted, HashedPostStateSorted,
-    HashedStorageSorted,
-};
-use alloy_primitives::{map::B256HashSet, B256, U256};
-use reth_primitives::Account;
+use crate::forward_cursor::ForwardInMemoryCursor;
+use alloy_primitives::{map::B256Set, B256, U256};
+use reth_primitives_traits::Account;
 use reth_storage_errors::db::DatabaseError;
+use reth_trie_common::{HashedAccountsSorted, HashedPostStateSorted, HashedStorageSorted};
 
 /// The hashed cursor factory for the post state.
 #[derive(Clone, Debug)]
@@ -48,7 +46,7 @@ pub struct HashedPostStateAccountCursor<'a, C> {
     /// Forward-only in-memory cursor over accounts.
     post_state_cursor: ForwardInMemoryCursor<'a, B256, Account>,
     /// Reference to the collection of account keys that were destroyed.
-    destroyed_accounts: &'a B256HashSet,
+    destroyed_accounts: &'a B256Set,
     /// The last hashed account that was returned by the cursor.
     /// De facto, this is a current cursor position.
     last_account: Option<B256>,
@@ -82,7 +80,7 @@ where
         // It's an exact match, return the account from post state without looking up in the
         // database.
         if post_state_entry.is_some_and(|entry| entry.0 == key) {
-            return Ok(post_state_entry);
+            return Ok(post_state_entry)
         }
 
         // It's not an exact match, reposition to the first greater or equal account that wasn't
@@ -182,7 +180,7 @@ pub struct HashedPostStateStorageCursor<'a, C> {
     /// Forward-only in-memory cursor over non zero-valued account storage slots.
     post_state_cursor: Option<ForwardInMemoryCursor<'a, B256, U256>>,
     /// Reference to the collection of storage slot keys that were cleared.
-    cleared_slots: Option<&'a B256HashSet>,
+    cleared_slots: Option<&'a B256Set>,
     /// Flag indicating whether database storage was wiped.
     storage_wiped: bool,
     /// The last slot that has been returned by the cursor.
@@ -217,7 +215,7 @@ where
         // If database storage was wiped or it's an exact match,
         // return the storage slot from post state without looking up in the database.
         if self.storage_wiped || post_state_entry.is_some_and(|entry| entry.0 == subkey) {
-            return Ok(post_state_entry);
+            return Ok(post_state_entry)
         }
 
         // It's not an exact match and storage was not wiped,
@@ -239,7 +237,7 @@ where
 
         // Return post state entry immediately if database was wiped.
         if self.storage_wiped {
-            return Ok(post_state_entry);
+            return Ok(post_state_entry)
         }
 
         // If post state was given precedence, move the cursor forward.

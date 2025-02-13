@@ -6,7 +6,7 @@ use reth_evm::ConfigureEvm;
 use reth_provider::ProviderHeader;
 use reth_rpc_eth_api::{
     helpers::{estimate::EstimateCall, Call, EthCall, LoadBlock, LoadState, SpawnBlocking},
-    FromEthApiError, FullEthApiTypes, IntoEthApiError,
+    FromEthApiError, FromEvmError, FullEthApiTypes, IntoEthApiError,
 };
 use reth_rpc_eth_types::{revm_utils::CallFees, RpcInvalidTransactionError};
 use revm::primitives::{BlockEnv, OptimismFields, TxEnv};
@@ -28,7 +28,10 @@ where
 
 impl<N> Call for OpEthApi<N>
 where
-    Self: LoadState<Evm: ConfigureEvm<Header = ProviderHeader<Self::Provider>>> + SpawnBlocking,
+    Self: LoadState<
+            Evm: ConfigureEvm<Header = ProviderHeader<Self::Provider>, TxEnv = TxEnv>,
+            Error: FromEvmError<Self::Evm>,
+        > + SpawnBlocking,
     Self::Error: From<OpEthApiError>,
     N: OpNodeCore,
 {
@@ -49,7 +52,7 @@ where
     ) -> Result<TxEnv, Self::Error> {
         // Ensure that if versioned hashes are set, they're not empty
         if request.blob_versioned_hashes.as_ref().is_some_and(|hashes| hashes.is_empty()) {
-            return Err(RpcInvalidTransactionError::BlobTransactionMissingBlobHashes.into_eth_err());
+            return Err(RpcInvalidTransactionError::BlobTransactionMissingBlobHashes.into_eth_err())
         }
 
         let TransactionRequest {

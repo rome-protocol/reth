@@ -527,7 +527,7 @@ impl Transaction<RW> {
     /// Begins a new nested transaction inside of this transaction.
     pub fn begin_nested_txn(&mut self) -> Result<Self> {
         if self.inner.env.is_write_map() {
-            return Err(Error::NestedTransactionsUnsupportedWithWriteMap);
+            return Err(Error::NestedTransactionsUnsupportedWithWriteMap)
         }
         self.txn_execute(|txn| {
             let (tx, rx) = sync_channel(0);
@@ -579,15 +579,18 @@ impl TransactionPtr {
         self.timed_out.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
+    /// Acquires the inner transaction lock to guarantee exclusive access to the transaction
+    /// pointer.
     fn lock(&self) -> MutexGuard<'_, ()> {
         if let Some(lock) = self.lock.try_lock() {
             lock
         } else {
-            tracing::debug!(
+            tracing::trace!(
                 target: "libmdbx",
                 txn = %self.txn as usize,
-                backtrace = %std::backtrace::Backtrace::force_capture(),
-                "Transaction lock is already acquired, blocking..."
+                backtrace = %std::backtrace::Backtrace::capture(),
+                "Transaction lock is already acquired, blocking...
+                To display the full backtrace, run with `RUST_BACKTRACE=full` env variable."
             );
             self.lock.lock()
         }
@@ -608,7 +611,7 @@ impl TransactionPtr {
         // to the `mdbx_txn_reset`.
         #[cfg(feature = "read-tx-timeouts")]
         if self.is_timed_out() {
-            return Err(Error::ReadTransactionTimeout);
+            return Err(Error::ReadTransactionTimeout)
         }
 
         Ok((f)(self.txn))

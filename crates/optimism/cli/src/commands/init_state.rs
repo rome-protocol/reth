@@ -61,7 +61,7 @@ impl<C: ChainSpecParser<ChainSpec = OpChainSpec>> InitStateCommandOp<C> {
                 )?;
 
                 // SAFETY: it's safe to commit static files, since in the event of a crash, they
-                // will be unwinded according to database checkpoints.
+                // will be unwound according to database checkpoints.
                 //
                 // Necessary to commit, so the BEDROCK_HEADER is accessible to provider_rw and
                 // init_state_dump
@@ -69,7 +69,7 @@ impl<C: ChainSpecParser<ChainSpec = OpChainSpec>> InitStateCommandOp<C> {
             } else if last_block_number > 0 && last_block_number < BEDROCK_HEADER.number {
                 return Err(eyre::eyre!(
                     "Data directory should be empty when calling init-state with --without-ovm."
-                ));
+                ))
             }
         }
 

@@ -17,7 +17,7 @@ use crate::{
     TransactionValidationOutcome, TransactionValidator, ValidPoolTransaction,
 };
 use alloy_eips::{
-    eip1559::ETHEREUM_BLOCK_GAS_LIMIT,
+    eip1559::ETHEREUM_BLOCK_GAS_LIMIT_30M,
     eip4844::{BlobAndProofV1, BlobTransactionSidecar},
 };
 use alloy_primitives::{Address, TxHash, B256, U256};
@@ -43,7 +43,7 @@ impl TransactionPool for NoopTransactionPool {
 
     fn block_info(&self) -> BlockInfo {
         BlockInfo {
-            block_gas_limit: ETHEREUM_BLOCK_GAS_LIMIT,
+            block_gas_limit: ETHEREUM_BLOCK_GAS_LIMIT_30M,
             last_seen_block_hash: Default::default(),
             last_seen_block_number: 0,
             pending_basefee: 0,
@@ -304,7 +304,7 @@ impl TransactionPool for NoopTransactionPool {
         tx_hashes: Vec<TxHash>,
     ) -> Result<Vec<Arc<BlobTransactionSidecar>>, BlobStoreError> {
         if tx_hashes.is_empty() {
-            return Ok(vec![]);
+            return Ok(vec![])
         }
         Err(BlobStoreError::MissingSidecar(tx_hashes[0]))
     }

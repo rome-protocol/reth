@@ -20,8 +20,8 @@ pub enum StateRootError {
 impl From<StateRootError> for DatabaseError {
     fn from(err: StateRootError) -> Self {
         match err {
-            StateRootError::Database(err)
-            | StateRootError::StorageRootError(StorageRootError::Database(err)) => err,
+            StateRootError::Database(err) |
+            StateRootError::StorageRootError(StorageRootError::Database(err)) => err,
         }
     }
 }
@@ -107,6 +107,9 @@ pub enum SparseStateTrieErrorKind {
         /// Encoded first proof node.
         node: Bytes,
     },
+    /// Storage sparse trie error.
+    #[error("error in storage trie for address {0:?}: {1:?}")]
+    SparseStorageTrie(B256, SparseTrieErrorKind),
     /// Sparse trie error.
     #[error(transparent)]
     Sparse(#[from] SparseTrieErrorKind),

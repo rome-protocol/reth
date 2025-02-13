@@ -72,7 +72,7 @@ async fn test_4844_tx_gossip_penalization() {
 
     let mut gen = TransactionGenerator::new(thread_rng());
 
-    // peer 0 will be penalised for sending txs[0] over gossip
+    // peer 0 will be penalized for sending txs[0] over gossip
     let txs = vec![gen.gen_eip4844_pooled(), gen.gen_eip1559_pooled()];
 
     for tx in &txs {
@@ -143,8 +143,8 @@ async fn test_sending_invalid_transactions() {
             NetworkEvent::Peer(PeerEvent::SessionClosed { peer_id, .. }) => {
                 assert_eq!(peer_id, *peer0.peer_id());
             }
-            NetworkEvent::ActivePeerSession { .. }
-            | NetworkEvent::Peer(PeerEvent::SessionEstablished { .. }) => {
+            NetworkEvent::ActivePeerSession { .. } |
+            NetworkEvent::Peer(PeerEvent::SessionEstablished { .. }) => {
                 panic!("unexpected SessionEstablished event")
             }
             NetworkEvent::Peer(PeerEvent::PeerAdded(_)) => {

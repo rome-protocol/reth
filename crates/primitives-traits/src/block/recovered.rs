@@ -291,9 +291,17 @@ impl<B: Block> RecoveredBlock<B> {
         self.senders.iter().zip(self.block.body().transactions())
     }
 
-    /// Returns an iterator over all transactions in the block.
+    /// Returns an iterator over `Recovered<&Transaction>`
     #[inline]
-    pub fn into_transactions_ecrecovered(
+    pub fn transactions_recovered(
+        &self,
+    ) -> impl Iterator<Item = Recovered<&'_ <B::Body as BlockBody>::Transaction>> {
+        self.transactions_with_sender().map(|(sender, tx)| Recovered::new_unchecked(tx, *sender))
+    }
+
+    /// Consumes the type and returns an iterator over all [`Recovered`] transactions in the block.
+    #[inline]
+    pub fn into_transactions_recovered(
         self,
     ) -> impl Iterator<Item = Recovered<<B::Body as BlockBody>::Transaction>> {
         self.block
@@ -403,9 +411,9 @@ impl<B: Block> Eq for RecoveredBlock<B> {}
 
 impl<B: Block> PartialEq for RecoveredBlock<B> {
     fn eq(&self, other: &Self) -> bool {
-        self.hash_ref().eq(other.hash_ref())
-            && self.block.eq(&other.block)
-            && self.senders.eq(&other.senders)
+        self.hash_ref().eq(other.hash_ref()) &&
+            self.block.eq(&other.block) &&
+            self.senders.eq(&other.senders)
     }
 }
 
@@ -594,5 +602,9 @@ pub(super) mod serde_bincode_compat {
         SerdeBincodeCompat for super::RecoveredBlock<T>
     {
         type BincodeRepr<'a> = RecoveredBlock<'a, T>;
+
+        fn as_repr(&self) -> Self::BincodeRepr<'_> {
+            self.into()
+        }
     }
 }

@@ -9,9 +9,7 @@ use alloy_rlp::Decodable;
 use alloy_rpc_types::engine::{BlobsBundleV1, PayloadAttributes};
 use clap::Parser;
 use eyre::Context;
-use reth_basic_payload_builder::{
-    BuildArguments, BuildOutcome, Cancelled, PayloadBuilder, PayloadConfig,
-};
+use reth_basic_payload_builder::{BuildArguments, BuildOutcome, PayloadBuilder, PayloadConfig};
 use reth_chainspec::ChainSpec;
 use reth_cli::chainspec::ChainSpecParser;
 use reth_cli_commands::common::{AccessRights, CliNodeTypes, Environment, EnvironmentArgs};
@@ -19,22 +17,25 @@ use reth_cli_runner::CliContext;
 use reth_consensus::{Consensus, FullConsensus};
 use reth_errors::{ConsensusError, RethResult};
 use reth_ethereum_payload_builder::EthereumBuilderConfig;
+use reth_ethereum_primitives::{EthPrimitives, Transaction, TransactionSigned};
 use reth_evm::execute::{BlockExecutorProvider, Executor};
 use reth_execution_types::ExecutionOutcome;
 use reth_fs_util as fs;
 use reth_node_api::{BlockTy, EngineApiMessageVersion, PayloadBuilderAttributes};
 use reth_node_ethereum::{consensus::EthBeaconConsensus, EthEvmConfig, EthExecutorProvider};
-use reth_primitives::{
-    transaction::SignedTransactionIntoRecoveredExt, EthPrimitives, SealedBlock, SealedHeader,
-    Transaction, TransactionSigned,
+use reth_primitives_traits::{
+    transaction::signed::SignedTransactionIntoRecoveredExt, Block as _, SealedBlock, SealedHeader,
+    SignedTransaction,
 };
-use reth_primitives_traits::{Block as _, SignedTransaction};
 use reth_provider::{
     providers::{BlockchainProvider, ProviderNodeTypes},
     BlockHashReader, BlockReader, BlockWriter, ChainSpecProvider, ProviderFactory,
     StageCheckpointReader, StateProviderFactory,
 };
-use reth_revm::{cached::CachedReads, database::StateProviderDatabase, primitives::KzgSettings};
+use reth_revm::{
+    cached::CachedReads, cancelled::CancelOnDrop, database::StateProviderDatabase,
+    primitives::KzgSettings,
+};
 use reth_stages::StageId;
 use reth_transaction_pool::{
     blobstore::InMemoryBlobStore, BlobStore, EthPooledTransaction, PoolConfig, TransactionOrigin,
@@ -42,10 +43,9 @@ use reth_transaction_pool::{
 };
 use reth_trie::StateRoot;
 use reth_trie_db::DatabaseStateRoot;
-use rome_sdk::RomeConfig;
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 use tracing::*;
-
+use rome_sdk::RomeConfig;
 /// `reth debug build-block` command
 /// This debug routine requires that the node is positioned at the block before the target.
 /// The script will then parse the block and attempt to build a similar one.
@@ -101,7 +101,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             provider
                 .block(best_number.into())?
                 .expect("the header for the latest block is missing, database is corrupt")
-                .seal(best_hash),
+                .seal_unchecked(best_hash),
         ))
     }
 
@@ -126,7 +126,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
     ) -> eyre::Result<()> {
         let Environment { provider_factory, .. } = self.env.init::<N>(AccessRights::RW)?;
 
-        let consensus: Arc<dyn FullConsensus<Error = ConsensusError>> =
+        let consensus: Arc<dyn FullConsensus<EthPrimitives, Error = ConsensusError>> =
             Arc::new(EthBeaconConsensus::new(provider_factory.chain_spec()));
 
         // fetch the best block from the database
@@ -137,16 +137,11 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         let blockchain_db = BlockchainProvider::new(provider_factory.clone())?;
         let blob_store = InMemoryBlobStore::default();
 
-        let validator =
-            TransactionValidationTaskExecutor::eth_builder(provider_factory.chain_spec())
-                .with_head_timestamp(best_block.timestamp)
-                .kzg_settings(self.kzg_settings()?)
-                .with_additional_tasks(1)
-                .build_with_tasks(
-                    blockchain_db.clone(),
-                    ctx.task_executor.clone(),
-                    blob_store.clone(),
-                );
+        let validator = TransactionValidationTaskExecutor::eth_builder(blockchain_db.clone())
+            .with_head_timestamp(best_block.timestamp)
+            .kzg_settings(self.kzg_settings()?)
+            .with_additional_tasks(1)
+            .build_with_tasks(ctx.task_executor.clone(), blob_store.clone());
 
         let transaction_pool = reth_transaction_pool::Pool::eth_pool(
             validator,
@@ -167,10 +162,10 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         for tx_bytes in &self.transactions {
             debug!(target: "reth::cli", bytes = ?tx_bytes, "Decoding transaction");
             let transaction = TransactionSigned::decode(&mut &Bytes::from_str(tx_bytes)?[..])?
-                .try_ecrecovered()
-                .ok_or_else(|| eyre::eyre!("failed to recover tx"))?;
+                .try_clone_into_recovered()
+                .map_err(|e| eyre::eyre!("failed to recover tx: {e}"))?;
 
-            let encoded_length = match &transaction.transaction {
+            let encoded_length = match transaction.transaction() {
                 Transaction::Eip4844(TxEip4844 { blob_versioned_hashes, .. }) => {
                     let blobs_bundle = blobs_bundle.as_mut().ok_or_else(|| {
                         eyre::eyre!("encountered a blob tx. `--blobs-bundle-path` must be provided")
@@ -221,15 +216,15 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         );
 
         let args = BuildArguments::new(
-            blockchain_db.clone(),
-            transaction_pool,
             CachedReads::default(),
             payload_config,
-            Cancelled::default(),
+            CancelOnDrop::default(),
             None,
         );
 
         let payload_builder = reth_ethereum_payload_builder::EthereumPayloadBuilder::new(
+            blockchain_db.clone(),
+            transaction_pool,
             EthEvmConfig::new(provider_factory.chain_spec()),
             EthereumBuilderConfig::new(Default::default()),
         );
@@ -244,14 +239,12 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
                 consensus.validate_block_pre_execution(block)?;
 
                 let block_with_senders = block.clone().try_recover().unwrap();
-                let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
 
                 let state_provider = blockchain_db.latest()?;
                 let db = StateProviderDatabase::new(&state_provider);
+                let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
                 let executor =
-                    EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config)
-                        .await
-                        .executor(db);
+                    EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await.executor(db);
 
                 let block_execution_output = executor.execute(&block_with_senders)?;
                 let execution_outcome =

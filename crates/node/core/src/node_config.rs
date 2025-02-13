@@ -37,6 +37,9 @@ pub const DEFAULT_PERSISTENCE_THRESHOLD: u64 = 2;
 /// How close to the canonical head we persist blocks.
 pub const DEFAULT_MEMORY_BLOCK_BUFFER_TARGET: u64 = 2;
 
+/// Default size of cross-block cache in megabytes.
+pub const DEFAULT_CROSS_BLOCK_CACHE_SIZE_MB: u64 = 4 * 1024;
+
 /// This includes all necessary configuration to launch the node.
 /// The individual configuration options can be overwritten before launching the node.
 ///
@@ -354,7 +357,7 @@ impl<ChainSpec> NodeConfig<ChainSpec> {
         // try to look up the header in the database
         if let Some(header) = header {
             info!(target: "reth::cli", ?tip, "Successfully looked up tip block in the database");
-            return Ok(header.number());
+            return Ok(header.number())
         }
 
         Ok(self.fetch_tip_from_network(client, tip.into()).await.number())
@@ -377,7 +380,7 @@ impl<ChainSpec> NodeConfig<ChainSpec> {
             match get_single_header(&client, tip).await {
                 Ok(tip_header) => {
                     info!(target: "reth::cli", ?tip, "Successfully fetched tip");
-                    return tip_header;
+                    return tip_header
                 }
                 Err(error) => {
                     fetch_failures += 1;

@@ -13,7 +13,8 @@ use reth_chainspec::{EthChainSpec, EthereumHardforks};
 use reth_errors::RethError;
 use reth_evm::{
     env::EvmEnv, state_change::post_block_withdrawals_balance_increments,
-    system_calls::SystemCaller, ConfigureEvm, ConfigureEvmEnv, Evm, NextBlockEnvAttributes,
+    system_calls::SystemCaller, ConfigureEvm, ConfigureEvmEnv, Evm, EvmError, InvalidTxError,
+    NextBlockEnvAttributes,
 };
 use reth_primitives::{InvalidTransactionError, RecoveredBlock};
 use reth_primitives_traits::Receipt;
@@ -23,7 +24,7 @@ use reth_provider::{
 };
 use reth_revm::{
     database::StateProviderDatabase,
-    primitives::{BlockEnv, EVMError, ExecutionResult, InvalidTransaction, ResultAndState},
+    primitives::{BlockEnv, ExecutionResult, ResultAndState},
 };
 use reth_rpc_eth_types::{EthApiError, PendingBlock, PendingBlockEnv, PendingBlockEnvOrigin};
 use reth_transaction_pool::{
@@ -43,6 +44,7 @@ pub trait LoadPendingBlock:
         NetworkTypes: Network<
             HeaderResponse = alloy_rpc_types_eth::Header<ProviderHeader<Self::Provider>>,
         >,
+        Error: FromEvmError<Self::Evm>,
     > + RpcNodeCore<
         Provider: BlockReaderIdExt<Receipt: Receipt>
                       + ChainSpecProvider<ChainSpec: EthChainSpec + EthereumHardforks>
@@ -69,7 +71,11 @@ pub trait LoadPendingBlock:
     fn pending_block_env_and_cfg(
         &self,
     ) -> Result<
-        PendingBlockEnv<ProviderBlock<Self::Provider>, ProviderReceipt<Self::Provider>>,
+        PendingBlockEnv<
+            ProviderBlock<Self::Provider>,
+            ProviderReceipt<Self::Provider>,
+            <Self::Evm as ConfigureEvmEnv>::Spec,
+        >,
         Self::Error,
     > {
         if let Some(block) =
@@ -83,7 +89,7 @@ pub trait LoadPendingBlock:
                 // Note: for the PENDING block we assume it is past the known merge block and
                 // thus this will not fail when looking up the total
                 // difficulty value for the blockenv.
-                let evm_env = self.evm_config().cfg_and_block_env(block.header());
+                let evm_env = self.evm_config().evm_env(block.header());
 
                 return Ok(PendingBlockEnv::new(
                     evm_env,
@@ -102,10 +108,10 @@ pub trait LoadPendingBlock:
 
         let evm_env = self
             .evm_config()
-            .next_cfg_and_block_env(
+            .next_evm_env(
                 &latest,
                 NextBlockEnvAttributes {
-                    timestamp: latest.timestamp() + 12,
+                    timestamp: latest.timestamp().saturating_add(12),
                     suggested_fee_recipient: latest.beneficiary(),
                     prev_randao: B256::random(),
                     gas_limit: latest.gas_limit(),
@@ -150,9 +156,9 @@ pub trait LoadPendingBlock:
             // check if the block is still good
             if let Some(pending_block) = lock.as_ref() {
                 // this is guaranteed to be the `latest` header
-                if pending.evm_env.block_env.number.to::<u64>() == pending_block.block.number()
-                    && parent_hash == pending_block.block.parent_hash()
-                    && now <= pending_block.expires_at
+                if pending.evm_env.block_env.number.to::<u64>() == pending_block.block.number() &&
+                    parent_hash == pending_block.block.parent_hash() &&
+                    now <= pending_block.expires_at
                 {
                     return Ok(Some((pending_block.block.clone(), pending_block.receipts.clone())));
                 }
@@ -169,7 +175,7 @@ pub trait LoadPendingBlock:
                 Ok(block) => block,
                 Err(err) => {
                     debug!(target: "rpc", "Failed to build pending block: {:?}", err);
-                    return Ok(None);
+                    return Ok(None)
                 }
             };
 
@@ -234,7 +240,7 @@ pub trait LoadPendingBlock:
     #[expect(clippy::type_complexity)]
     fn build_block(
         &self,
-        evm_env: EvmEnv,
+        evm_env: EvmEnv<<Self::Evm as ConfigureEvmEnv>::Spec>,
         parent_hash: B256,
     ) -> Result<
         (RecoveredBlock<ProviderBlock<Self::Provider>>, Vec<ProviderReceipt<Self::Provider>>),
@@ -286,7 +292,7 @@ pub trait LoadPendingBlock:
                         block_gas_limit,
                     ),
                 );
-                continue;
+                continue
             }
 
             if pool_tx.origin.is_private() {
@@ -299,7 +305,7 @@ pub trait LoadPendingBlock:
                         InvalidTransactionError::TxTypeNotSupported,
                     ),
                 );
-                continue;
+                continue
             }
 
             // convert tx to a signed transaction
@@ -320,7 +326,7 @@ pub trait LoadPendingBlock:
                             MAX_DATA_GAS_PER_BLOCK,
                         ),
                     );
-                    continue;
+                    continue
                 }
             }
 
@@ -330,27 +336,23 @@ pub trait LoadPendingBlock:
             let ResultAndState { result, state } = match evm.transact(tx_env) {
                 Ok(res) => res,
                 Err(err) => {
-                    match err {
-                        EVMError::Transaction(err) => {
-                            if matches!(err, InvalidTransaction::NonceTooLow { .. }) {
-                                // if the nonce is too low, we can skip this transaction
-                            } else {
-                                // if the transaction is invalid, we can skip it and all of its
-                                // descendants
-                                best_txs.mark_invalid(
-                                    &pool_tx,
-                                    InvalidPoolTransactionError::Consensus(
-                                        InvalidTransactionError::TxTypeNotSupported,
-                                    ),
-                                );
-                            }
-                            continue;
+                    if let Some(err) = err.as_invalid_tx_err() {
+                        if err.is_nonce_too_low() {
+                            // if the nonce is too low, we can skip this transaction
+                        } else {
+                            // if the transaction is invalid, we can skip it and all of its
+                            // descendants
+                            best_txs.mark_invalid(
+                                &pool_tx,
+                                InvalidPoolTransactionError::Consensus(
+                                    InvalidTransactionError::TxTypeNotSupported,
+                                ),
+                            );
                         }
-                        err => {
-                            // this is an error that we should treat as fatal for this attempt
-                            return Err(Self::Error::from_evm_err(err));
-                        }
+                        continue
                     }
+                    // this is an error that we should treat as fatal for this attempt
+                    return Err(Self::Error::from_evm_err(err));
                 }
             };
             // drop evm to release db reference.

@@ -108,7 +108,7 @@ pub trait EthState: LoadState + SpawnBlocking {
                 .ok_or(EthApiError::HeaderNotFound(block_id))?;
             let max_window = self.max_proof_window();
             if chain_info.best_number.saturating_sub(block_number) > max_window {
-                return Err(EthApiError::ExceedsMaxProofWindow.into());
+                return Err(EthApiError::ExceedsMaxProofWindow.into())
             }
 
             self.spawn_blocking_io(move |this| {
@@ -143,7 +143,7 @@ pub trait EthState: LoadState + SpawnBlocking {
                 .ok_or(EthApiError::HeaderNotFound(block_id))?;
             let max_window = this.max_proof_window();
             if chain_info.best_number.saturating_sub(block_number) > max_window {
-                return Err(EthApiError::ExceedsMaxProofWindow.into());
+                return Err(EthApiError::ExceedsMaxProofWindow.into())
             }
 
             let balance = account.balance;
@@ -210,10 +210,13 @@ pub trait LoadState:
     /// for.
     /// If the [`BlockId`] is pending, this will return the "Pending" tag, otherwise this returns
     /// the hash of the exact block.
+    #[expect(clippy::type_complexity)]
     fn evm_env_at(
         &self,
         at: BlockId,
-    ) -> impl Future<Output = Result<(EvmEnv, BlockId), Self::Error>> + Send
+    ) -> impl Future<
+        Output = Result<(EvmEnv<<Self::Evm as ConfigureEvmEnv>::Spec>, BlockId), Self::Error>,
+    > + Send
     where
         Self: LoadPendingBlock + SpawnBlocking,
     {
@@ -230,7 +233,7 @@ pub trait LoadState:
 
                 let header =
                     self.cache().get_header(block_hash).await.map_err(Self::Error::from_eth_err)?;
-                let evm_env = self.evm_config().cfg_and_block_env(&header);
+                let evm_env = self.evm_config().evm_env(&header);
 
                 Ok((evm_env, block_hash.into()))
             }

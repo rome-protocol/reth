@@ -113,7 +113,7 @@ pub struct TokioTaskExecutor;
 
 impl TokioTaskExecutor {
     /// Converts the instance to a boxed [`TaskSpawner`].
-    pub fn boxed(self) -> Box<dyn TaskSpawner> {
+    pub fn boxed(self) -> Box<dyn TaskSpawner + 'static> {
         Box::new(self)
     }
 }
@@ -230,7 +230,7 @@ impl TaskManager {
         while self.graceful_tasks.load(Ordering::Relaxed) > 0 {
             if when.map(|when| std::time::Instant::now() > when).unwrap_or(false) {
                 debug!("graceful shutdown timed out");
-                return false;
+                return false
             }
             std::hint::spin_loop();
         }

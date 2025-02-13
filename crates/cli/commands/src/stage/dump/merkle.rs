@@ -14,7 +14,6 @@ use reth_provider::{
     providers::{ProviderNodeTypes, StaticFileProvider},
     DatabaseProviderFactory, ProviderFactory,
 };
-use reth_prune::PruneModes;
 use reth_stages::{
     stages::{
         AccountHashingStage, ExecutionStage, MerkleStage, StorageHashingStage,
@@ -104,7 +103,6 @@ fn unwind_and_copy<N: ProviderNodeTypes>(
             max_duration: None,
         },
         MERKLE_STAGE_DEFAULT_CLEAN_THRESHOLD,
-        PruneModes::all(),
         ExExManagerHandle::empty(),
     );
 
@@ -166,7 +164,7 @@ where
             checkpoint: Some(StageCheckpoint::new(from)),
         };
         if stage.execute(&provider, input)?.done {
-            break;
+            break
         }
     }
 

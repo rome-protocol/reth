@@ -6,12 +6,11 @@ use alloy_rpc_types_beacon::relay::{
     BidTrace, BuilderBlockValidationRequestV3, BuilderBlockValidationRequestV4,
     SignedBidSubmissionV3, SignedBidSubmissionV4,
 };
-use alloy_rpc_types_engine::BlobsBundleV1;
+use alloy_rpc_types_engine::{BlobsBundleV1, ExecutionPayloadV3};
 use alloy_rpc_types_eth::TransactionRequest;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use reth_chainspec::{ChainSpecBuilder, MAINNET};
 use reth_e2e_test_utils::setup_engine;
-use reth_node_core::rpc::compat::engine::payload::block_to_payload_v3;
 use reth_node_ethereum::EthereumNode;
 use reth_payload_primitives::BuiltPayload;
 use std::sync::Arc;
@@ -50,15 +49,14 @@ async fn test_fee_history() -> eyre::Result<()> {
         setup_engine::<EthereumNode>(1, chain_spec.clone(), false, eth_payload_attributes).await?;
     let mut node = nodes.pop().unwrap();
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(wallet.gen().swap_remove(0)))
         .on_http(node.rpc_url());
 
     let fee_history = provider.get_fee_history(10, 0_u64.into(), &[]).await?;
 
     let genesis_base_fee = chain_spec.initial_base_fee().unwrap() as u128;
-    let expected_first_base_fee = genesis_base_fee
-        - genesis_base_fee / chain_spec.base_fee_params_at_block(0).max_change_denominator;
+    let expected_first_base_fee = genesis_base_fee -
+        genesis_base_fee / chain_spec.base_fee_params_at_block(0).max_change_denominator;
     assert_eq!(fee_history.base_fee_per_gas[0], genesis_base_fee);
     assert_eq!(fee_history.base_fee_per_gas[1], expected_first_base_fee,);
 
@@ -133,7 +131,6 @@ async fn test_flashbots_validate_v3() -> eyre::Result<()> {
         setup_engine::<EthereumNode>(1, chain_spec.clone(), false, eth_payload_attributes).await?;
     let mut node = nodes.pop().unwrap();
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(wallet.gen().swap_remove(0)))
         .on_http(node.rpc_url());
 
@@ -163,7 +160,10 @@ async fn test_flashbots_validate_v3() -> eyre::Result<()> {
                 gas_limit: payload.block().gas_limit,
                 ..Default::default()
             },
-            execution_payload: block_to_payload_v3(payload.block().clone()),
+            execution_payload: ExecutionPayloadV3::from_block_unchecked(
+                payload.block().hash(),
+                &payload.block().clone().into_block(),
+            ),
             blobs_bundle: BlobsBundleV1::new([]),
             signature: Default::default(),
         },
@@ -207,7 +207,6 @@ async fn test_flashbots_validate_v4() -> eyre::Result<()> {
         setup_engine::<EthereumNode>(1, chain_spec.clone(), false, eth_payload_attributes).await?;
     let mut node = nodes.pop().unwrap();
     let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(EthereumWallet::new(wallet.gen().swap_remove(0)))
         .on_http(node.rpc_url());
 
@@ -237,7 +236,10 @@ async fn test_flashbots_validate_v4() -> eyre::Result<()> {
                 gas_limit: payload.block().gas_limit,
                 ..Default::default()
             },
-            execution_payload: block_to_payload_v3(payload.block().clone()),
+            execution_payload: ExecutionPayloadV3::from_block_unchecked(
+                payload.block().hash(),
+                &payload.block().clone().into_block(),
+            ),
             blobs_bundle: BlobsBundleV1::new([]),
             execution_requests: payload.requests().unwrap().try_into().unwrap(),
             signature: Default::default(),

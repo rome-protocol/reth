@@ -1,9 +1,8 @@
 use crate::tree::metrics::BlockBufferMetrics;
 use alloy_consensus::BlockHeader;
 use alloy_primitives::{BlockHash, BlockNumber};
-use reth_network::cache::LruCache;
-use reth_primitives::RecoveredBlock;
-use reth_primitives_traits::Block;
+use reth_primitives_traits::{Block, RecoveredBlock};
+use schnellru::{ByLength, LruMap};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 /// Contains the tree of pending blocks that cannot be executed due to missing parent.
@@ -18,7 +17,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 /// Note: Buffer is limited by number of blocks that it can contain and eviction of the block
 /// is done by last recently used block.
 #[derive(Debug)]
-pub(super) struct BlockBuffer<B: Block> {
+pub struct BlockBuffer<B: Block> {
     /// All blocks in the buffer stored by their block hash.
     pub(crate) blocks: HashMap<BlockHash, RecoveredBlock<B>>,
     /// Map of any parent block hash (even the ones not currently in the buffer)
@@ -32,30 +31,30 @@ pub(super) struct BlockBuffer<B: Block> {
     /// first in line for evicting if `max_blocks` limit is hit.
     ///
     /// Used as counter of amount of blocks inside buffer.
-    pub(crate) lru: LruCache<BlockHash>,
+    pub(crate) lru: LruMap<BlockHash, ()>,
     /// Various metrics for the block buffer.
     pub(crate) metrics: BlockBufferMetrics,
 }
 
 impl<B: Block> BlockBuffer<B> {
     /// Create new buffer with max limit of blocks
-    pub(super) fn new(limit: u32) -> Self {
+    pub fn new(limit: u32) -> Self {
         Self {
             blocks: Default::default(),
             parent_to_child: Default::default(),
             earliest_blocks: Default::default(),
-            lru: LruCache::new(limit),
+            lru: LruMap::new(ByLength::new(limit)),
             metrics: Default::default(),
         }
     }
 
     /// Return reference to the requested block.
-    pub(super) fn block(&self, hash: &BlockHash) -> Option<&RecoveredBlock<B>> {
+    pub fn block(&self, hash: &BlockHash) -> Option<&RecoveredBlock<B>> {
         self.blocks.get(hash)
     }
 
     /// Return a reference to the lowest ancestor of the given block in the buffer.
-    pub(super) fn lowest_ancestor(&self, hash: &BlockHash) -> Option<&RecoveredBlock<B>> {
+    pub fn lowest_ancestor(&self, hash: &BlockHash) -> Option<&RecoveredBlock<B>> {
         let mut current_block = self.blocks.get(hash)?;
         while let Some(parent) = self.blocks.get(&current_block.parent_hash()) {
             current_block = parent;
@@ -64,14 +63,14 @@ impl<B: Block> BlockBuffer<B> {
     }
 
     /// Insert a correct block inside the buffer.
-    pub(super) fn insert_block(&mut self, block: RecoveredBlock<B>) {
+    pub fn insert_block(&mut self, block: RecoveredBlock<B>) {
         let hash = block.hash();
 
         self.parent_to_child.entry(block.parent_hash()).or_default().insert(hash);
         self.earliest_blocks.entry(block.number()).or_default().insert(hash);
         self.blocks.insert(hash, block);
 
-        if let (_, Some(evicted_hash)) = self.lru.insert_and_get_evicted(hash) {
+        if let Some(evicted_hash) = self.insert_hash_and_get_evicted(hash) {
             // evict the block if limit is hit
             if let Some(evicted_block) = self.remove_block(&evicted_hash) {
                 // evict the block if limit is hit
@@ -81,13 +80,25 @@ impl<B: Block> BlockBuffer<B> {
         self.metrics.blocks.set(self.blocks.len() as f64);
     }
 
+    /// Inserts the hash and returns the oldest evicted hash if any.
+    fn insert_hash_and_get_evicted(&mut self, entry: BlockHash) -> Option<BlockHash> {
+        let new = self.lru.peek(&entry).is_none();
+        let evicted = if new && self.lru.limiter().max_length() as usize <= self.lru.len() {
+            self.lru.pop_oldest().map(|(k, ())| k)
+        } else {
+            None
+        };
+        self.lru.get_or_insert(entry, || ());
+        evicted
+    }
+
     /// Removes the given block from the buffer and also all the children of the block.
     ///
     /// This is used to get all the blocks that are dependent on the block that is included.
     ///
     /// Note: that order of returned blocks is important and the blocks with lower block number
     /// in the chain will come first so that they can be executed in the correct order.
-    pub(super) fn remove_block_with_children(
+    pub fn remove_block_with_children(
         &mut self,
         parent_hash: &BlockHash,
     ) -> Vec<RecoveredBlock<B>> {
@@ -101,13 +112,13 @@ impl<B: Block> BlockBuffer<B> {
     }
 
     /// Discard all blocks that precede block number from the buffer.
-    pub(super) fn remove_old_blocks(&mut self, block_number: BlockNumber) {
+    pub fn remove_old_blocks(&mut self, block_number: BlockNumber) {
         let mut block_hashes_to_remove = Vec::new();
 
         // discard all blocks that are before the finalized number.
         while let Some(entry) = self.earliest_blocks.first_entry() {
             if *entry.key() > block_number {
-                break;
+                break
             }
             let block_hashes = entry.remove();
             block_hashes_to_remove.extend(block_hashes);
@@ -184,7 +195,7 @@ mod tests {
     use super::*;
     use alloy_eips::BlockNumHash;
     use alloy_primitives::BlockHash;
-    use reth_primitives::RecoveredBlock;
+    use reth_primitives_traits::RecoveredBlock;
     use reth_testing_utils::generators::{self, random_block, BlockParams, Rng};
     use std::collections::HashMap;
 
@@ -193,7 +204,7 @@ mod tests {
         rng: &mut R,
         number: u64,
         parent: BlockHash,
-    ) -> RecoveredBlock<reth_primitives::Block> {
+    ) -> RecoveredBlock<reth_ethereum_primitives::Block> {
         let block =
             random_block(rng, number, BlockParams { parent: Some(parent), ..Default::default() });
         block.try_recover().unwrap()
@@ -216,7 +227,7 @@ mod tests {
     /// Assert that the block was removed from all buffer collections.
     fn assert_block_removal<B: Block>(
         buffer: &BlockBuffer<B>,
-        block: &RecoveredBlock<reth_primitives::Block>,
+        block: &RecoveredBlock<reth_ethereum_primitives::Block>,
     ) {
         assert!(!buffer.blocks.contains_key(&block.hash()));
         assert!(buffer

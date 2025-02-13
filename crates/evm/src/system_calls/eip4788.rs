@@ -26,7 +26,7 @@ pub(crate) fn transact_beacon_root_contract_call(
     evm: &mut impl Evm<Error: Display>,
 ) -> Result<Option<ResultAndState>, BlockExecutionError> {
     if !chain_spec.is_cancun_active_at_timestamp(block_timestamp) {
-        return Ok(None);
+        return Ok(None)
     }
 
     let parent_beacon_block_root =
@@ -39,9 +39,9 @@ pub(crate) fn transact_beacon_root_contract_call(
             return Err(BlockValidationError::CancunGenesisParentBeaconBlockRootNotZero {
                 parent_beacon_block_root,
             }
-            .into());
+            .into())
         }
-        return Ok(None);
+        return Ok(None)
     }
 
     let mut res = match evm.transact_system_call(

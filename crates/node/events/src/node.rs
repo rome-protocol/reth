@@ -220,8 +220,8 @@ impl NodeState {
             BeaconConsensusEngineEvent::ForkchoiceUpdated(state, status) => {
                 let ForkchoiceState { head_block_hash, safe_block_hash, finalized_block_hash } =
                     state;
-                if self.safe_block_hash != Some(safe_block_hash)
-                    && self.finalized_block_hash != Some(finalized_block_hash)
+                if self.safe_block_hash != Some(safe_block_hash) &&
+                    self.finalized_block_hash != Some(finalized_block_hash)
                 {
                     let msg = match status {
                         ForkchoiceStatus::Valid => "Forkchoice updated",
@@ -250,7 +250,8 @@ impl NodeState {
                     }
                 }
             }
-            BeaconConsensusEngineEvent::CanonicalBlockAdded(block, elapsed) => {
+            BeaconConsensusEngineEvent::CanonicalBlockAdded(executed, elapsed) => {
+                let block = executed.sealed_block();
                 info!(
                     number=block.number(),
                     hash=?block.hash(),
@@ -272,8 +273,12 @@ impl NodeState {
 
                 info!(number=head.number(), hash=?head.hash(), ?elapsed, "Canonical chain committed");
             }
-            BeaconConsensusEngineEvent::ForkBlockAdded(block, elapsed) => {
+            BeaconConsensusEngineEvent::ForkBlockAdded(executed, elapsed) => {
+                let block = executed.sealed_block();
                 info!(number=block.number(), hash=?block.hash(), ?elapsed, "Block added to fork chain");
+            }
+            BeaconConsensusEngineEvent::InvalidBlock(block) => {
+                warn!(number=block.number(), hash=?block.hash(), "Encountered invalid block");
             }
         }
     }
@@ -537,7 +542,7 @@ impl Eta {
             else {
                 self.eta = None;
                 debug!(target: "reth::cli", %stage, ?current, ?self.last_checkpoint, "Failed to calculate the ETA: processed entities is less than the last checkpoint");
-                return;
+                return
             };
             let elapsed = last_checkpoint_time.elapsed();
             let per_second = processed_since_last as f64 / elapsed.as_secs_f64();
@@ -545,7 +550,7 @@ impl Eta {
             let Some(remaining) = current.total.checked_sub(current.processed) else {
                 self.eta = None;
                 debug!(target: "reth::cli", %stage, ?current, "Failed to calculate the ETA: total entities is less than processed entities");
-                return;
+                return
             };
 
             self.eta = Duration::try_from_secs_f64(remaining as f64 / per_second).ok();
@@ -566,8 +571,8 @@ impl Eta {
     /// It's not the case for network-dependent ([`StageId::Headers`] and [`StageId::Bodies`]) and
     /// [`StageId::Execution`] stages.
     fn fmt_for_stage(&self, stage: StageId) -> Option<String> {
-        if !self.is_available()
-            || matches!(stage, StageId::Headers | StageId::Bodies | StageId::Execution)
+        if !self.is_available() ||
+            matches!(stage, StageId::Headers | StageId::Bodies | StageId::Execution)
         {
             None
         } else {
@@ -586,7 +591,7 @@ impl Display for Eta {
                     f,
                     "{}",
                     humantime::format_duration(Duration::from_secs(remaining.as_secs()))
-                );
+                )
             }
         }
 

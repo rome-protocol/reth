@@ -56,7 +56,7 @@ impl BlobStore for DiskFileBlobStore {
 
     fn insert_all(&self, txs: Vec<(B256, BlobTransactionSidecar)>) -> Result<(), BlobStoreError> {
         if txs.is_empty() {
-            return Ok(());
+            return Ok(())
         }
         self.inner.insert_many(txs)
     }
@@ -112,7 +112,7 @@ impl BlobStore for DiskFileBlobStore {
         txs: Vec<B256>,
     ) -> Result<Vec<(B256, Arc<BlobTransactionSidecar>)>, BlobStoreError> {
         if txs.is_empty() {
-            return Ok(Vec::new());
+            return Ok(Vec::new())
         }
         self.inner.get_all(txs)
     }
@@ -122,7 +122,7 @@ impl BlobStore for DiskFileBlobStore {
         txs: Vec<B256>,
     ) -> Result<Vec<Arc<BlobTransactionSidecar>>, BlobStoreError> {
         if txs.is_empty() {
-            return Ok(Vec::new());
+            return Ok(Vec::new())
         }
         self.inner.get_exact(txs)
     }
@@ -133,17 +133,9 @@ impl BlobStore for DiskFileBlobStore {
     ) -> Result<Vec<Option<BlobAndProofV1>>, BlobStoreError> {
         let mut result = vec![None; versioned_hashes.len()];
         for (_tx_hash, blob_sidecar) in self.inner.blob_cache.lock().iter() {
-            for (i, blob_versioned_hash) in blob_sidecar.versioned_hashes().enumerate() {
-                for (j, target_versioned_hash) in versioned_hashes.iter().enumerate() {
-                    if blob_versioned_hash == *target_versioned_hash {
-                        result[j].get_or_insert_with(|| BlobAndProofV1 {
-                            blob: Box::new(blob_sidecar.blobs[i]),
-                            proof: blob_sidecar.proofs[i],
-                        });
-                    }
-                }
+            for (hash_idx, match_result) in blob_sidecar.match_versioned_hashes(versioned_hashes) {
+                result[hash_idx] = Some(match_result);
             }
-
             // Return early if all blobs are found.
             if result.iter().all(|blob| blob.is_some()) {
                 break;
@@ -253,7 +245,7 @@ impl DiskFileBlobStoreInner {
     /// Returns true if the blob for the given transaction hash is in the blob cache or on disk.
     fn contains(&self, tx: B256) -> Result<bool, BlobStoreError> {
         if self.blob_cache.lock().get(&tx).is_some() {
-            return Ok(true);
+            return Ok(true)
         }
         // we only check if the file exists and assume it's valid
         Ok(self.blob_disk_file(tx).is_file())
@@ -279,14 +271,14 @@ impl DiskFileBlobStoreInner {
     /// Retrieves the blob for the given transaction hash from the blob cache or disk.
     fn get_one(&self, tx: B256) -> Result<Option<Arc<BlobTransactionSidecar>>, BlobStoreError> {
         if let Some(blob) = self.blob_cache.lock().get(&tx) {
-            return Ok(Some(blob.clone()));
+            return Ok(Some(blob.clone()))
         }
         let blob = self.read_one(tx)?;
 
         if let Some(blob) = &blob {
             let blob_arc = Arc::new(blob.clone());
             self.blob_cache.lock().insert(tx, blob_arc.clone());
-            return Ok(Some(blob_arc));
+            return Ok(Some(blob_arc))
         }
 
         Ok(None)
@@ -391,11 +383,11 @@ impl DiskFileBlobStoreInner {
             }
         }
         if cache_miss.is_empty() {
-            return Ok(res);
+            return Ok(res)
         }
         let from_disk = self.read_many_decoded(cache_miss);
         if from_disk.is_empty() {
-            return Ok(res);
+            return Ok(res)
         }
         let mut cache = self.blob_cache.lock();
         for (tx, data) in from_disk {
