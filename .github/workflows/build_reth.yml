@@ -52,12 +52,18 @@ jobs:
           path: reth
           ref: ${{github.ref_name}}
           token: ${{ secrets.GIT_ROLLUP_TOKEN }}
+
+      - name: 'Login to Docker Hub'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
   
       - name: 'Build reth'
         uses: docker/build-push-action@v4.0.0
         with:
           context: .
-          push: false
+          push: true
           file: reth/docker/Dockerfile
           tags: romeprotocol/rollup-reth:${{github.ref_name}}
           labels: romeprotocol/rollup-reth:${{github.ref_name}}
