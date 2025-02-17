@@ -128,5 +128,5 @@ min-debug-logs = ["tracing/release_max_level_debug"]
 min-trace-logs = ["tracing/release_max_level_trace"]
 
 [[bin]]
-name = "reth"
+name = "rome-reth"
 path = "src/main.rs"
