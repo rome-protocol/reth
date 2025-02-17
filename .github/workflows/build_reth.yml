@@ -6,10 +6,14 @@ on:
       - '**'
   workflow_dispatch:
     inputs:
-      rome_sdk_branch:
+      rome_sdk_ref_name:
         description: 'Branch name for the rome-sdk repository'
         required: false
         default: 'main'
+      rome_evm_ref_name:
+        description: 'Branch name for the rome-evm repository'
+        required: false
+        default: 'master'
 env:
   REF_NAME: ${{github.ref_name}}
 
@@ -17,35 +21,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: 'Prepare environment variables from input'
+        id: prepare_env
+        run: |
+          rome_evm_ref_name='${{ inputs.rome_evm_ref_name || 'master' }}'
+          rome_sdk_ref_name='${{ inputs.rome_sdk_ref_name || 'main' }}'
+          echo "ROME_EVM_REF_NAME=$rome_evm_ref_name" >> $GITHUB_ENV
+          echo "ROME_SDK_REF_NAME=$rome_sdk_ref_name" >> $GITHUB_ENV
 
-      - name: Checkout code
+      - name: 'Checkout rome-evm reposotory'
         uses: actions/checkout@master
         with:
-          path: reth
-          token: ${{ secrets.GIT_ROLLUP_TOKEN }}
-
-      - name: 'Determine SDK branch name'
-        id: get_branch_name
-        run: |
-          # If it's a workflow_dispatch, use the provided branch name
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            SDK_BRANCH_NAME="${{ github.event.inputs.rome_sdk_branch }}"
-          else
-            SDK_BRANCH_NAME="main"
-          fi
-          echo "sdk_branch_name=$SDK_BRANCH_NAME" >> $GITHUB_ENV
-
-      - name: 'Checkout SDK repository'
+          path: rome-evm-private
+          repository: rome-protocol/rome-evm-private
+          ref: ${{env.ROME_EVM_REF_NAME}}
+          token: ${{secrets.GIT_ROLLUP_TOKEN}}
+      
+      - name: 'Checkout rome-sdk reposotory'
         uses: actions/checkout@master
         with:
           repository: rome-protocol/rome-sdk
           path: rome-sdk
-          ref: ${{ env.sdk_branch_name }}
+          submodules: recursive
+          ref: ${{env.ROME_SDK_REF_NAME}}
           token: ${{ secrets.GIT_ROLLUP_TOKEN }}
-
+  
+      - name: Checkout reth
+        uses: actions/checkout@master
+        with:
+          path: reth
+          ref: ${{github.ref_name}}
+          token: ${{ secrets.GIT_ROLLUP_TOKEN }}
+  
       - name: 'Build reth'
         uses: docker/build-push-action@v4.0.0
         with:
           context: .
           push: false
-          file: reth/Dockerfile
+          file: reth/docker/Dockerfile
+          tags: romeprotocol/rollup-reth:${{github.ref_name}}
+          labels: romeprotocol/rollup-reth:${{github.ref_name}}
+
+      - name: 'Set latest tag'
+        if: ${{github.ref_name == 'main'}}
+        run: |
+          docker pull romeprotocol/rollup-reth:${{github.ref_name}}
+          docker tag romeprotocol/rollup-reth:$${{github.ref_name}} romeprotocol/rollup-reth:latest
+          docker push romeprotocol/rollup-reth:latest
