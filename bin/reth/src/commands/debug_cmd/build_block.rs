@@ -242,7 +242,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
 
                 let state_provider = blockchain_db.latest()?;
                 let db = StateProviderDatabase::new(&state_provider);
-                let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+                let rome_config = RomeConfig::load_json("./client-config.json".into()).await.unwrap(); // TODO
                 let executor =
                     EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await.executor(db);
 

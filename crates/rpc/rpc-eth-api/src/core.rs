@@ -14,7 +14,7 @@ use alloy_rpc_types_eth::{
 use alloy_serde::JsonStorageKey;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use reth_rpc_server_types::{result::internal_rpc_err, ToRpcResult};
-use tracing::trace;
+use tracing::{trace, info};
 
 use crate::{
     helpers::{EthApiSpec, EthBlocks, EthCall, EthFees, EthState, EthTransactions, FullEthApi},
@@ -770,7 +770,7 @@ where
 
     /// Handler for: `eth_sendTransaction`
     async fn send_transaction(&self, request: TransactionRequest) -> RpcResult<B256> {
-        trace!(target: "rpc::eth", ?request, "Serving eth_sendTransaction");
+        info!(target: "rpc::eth", ?request, "Serving eth_sendTransaction");
         Ok(EthTransactions::send_transaction(self, request).await?)
     }
 

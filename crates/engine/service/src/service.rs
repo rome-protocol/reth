@@ -197,7 +197,7 @@ pub struct EngineServiceError {}
 //         let pipeline = TestPipelineBuilder::new().build(chain_spec.clone());
 //         let pipeline_task_spawner = Box::<TokioTaskExecutor>::default();
 //         let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
-//         let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+//         let rome_config = RomeConfig::load_json("./client-config.json".into()).await.unwrap(); // TODO
 
 //         let executor_factory = EthExecutorProvider::ethereum(chain_spec.clone());
 //         let blockchain_db =

@@ -111,7 +111,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
             )
             .await?;
 
-        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+        let rome_config = RomeConfig::load_json("./client-config.json".into()).await.unwrap(); // TODO
         let executor_provider =
         EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await;
 
