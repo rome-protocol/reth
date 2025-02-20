@@ -28,19 +28,19 @@ use reth_rpc_server_types::RethRpcModule;
 use reth_trie_db::MerklePatriciaTrie;
 use revm::primitives::TxEnv;
 use std::sync::Arc;
-use reth_rome_evm::execute::RomeExecutionStrategyFactoryConfig;
+use reth_rome_evm::config::RomeEvmConfig;
 
 /// Type configuration for a regular Rome node.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RomeNode {
-    pub rome_execution_config: RomeExecutionStrategyFactoryConfig,
+    pub rome_evm_config: RomeEvmConfig,
 }
 
 impl RomeNode {
     /// Configure the data availability configuration for the OP builder.
-    pub fn new(rome_execution_config: RomeExecutionStrategyFactoryConfig) -> Self {
-        RomeNode { rome_execution_config }
+    pub fn new(rome_evm_config: RomeEvmConfig) -> Self {
+        RomeNode { rome_evm_config }
     }
 
     /// Returns a [`ComponentsBuilder`] configured for a regular Rome node.
@@ -65,7 +65,7 @@ impl RomeNode {
             .pool(EthereumPoolBuilder::default())
             .payload(EthereumPayloadBuilder::default())
             .network(EthereumNetworkBuilder::default())
-            .executor(RomeExecutorBuilder::new(self.rome_execution_config.clone()))
+            .executor(RomeExecutorBuilder::new(self.rome_evm_config.clone()))
             .consensus(EthereumConsensusBuilder::default())
     }
 
@@ -234,12 +234,12 @@ where
 #[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct RomeExecutorBuilder {
-    rome_execution_config: RomeExecutionStrategyFactoryConfig
+    rome_evm_config: RomeEvmConfig
 }
 
 impl RomeExecutorBuilder {
-    pub fn new(rome_execution_config: RomeExecutionStrategyFactoryConfig) -> Self {
-        Self { rome_execution_config }
+    pub fn new(rome_evm_config: RomeEvmConfig) -> Self {
+        Self { rome_evm_config }
     }
 }
 
@@ -257,7 +257,7 @@ where
     ) -> eyre::Result<(Self::EVM, Self::Executor)> {
         let chain_spec = ctx.chain_spec();
         let evm_config = EthEvmConfig::new(ctx.chain_spec());
-        let strategy_factory = RomeExecutionStrategyFactory::new(chain_spec, evm_config.clone(), self.rome_execution_config).await; // todo;
+        let strategy_factory = RomeExecutionStrategyFactory::new(chain_spec, evm_config.clone(), self.rome_evm_config).await; // todo;
         let executor = BasicBlockExecutorProvider::new(strategy_factory);
 
         Ok((evm_config, executor))

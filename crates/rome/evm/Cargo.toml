@@ -13,7 +13,6 @@ workspace = true
 [dependencies]
 # Reth
 reth-chainspec.workspace = true
-reth-ethereum-forks.workspace = true
 reth-evm.workspace = true
 reth-evm-ethereum.workspace = true
 reth-primitives.workspace = true
@@ -29,10 +28,8 @@ reth-primitives-traits.workspace = true
 rome-sdk.workspace = true
 
 # Alloy
-alloy-primitives.workspace = true
 alloy-eips.workspace = true
-alloy-sol-types.workspace = true
 alloy-consensus.workspace = true
 
 # Misc
-derive_more.workspace = true
+serde.workspace = true

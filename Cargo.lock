@@ -10926,13 +10926,9 @@ version = "1.1.5"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
- "alloy-primitives",
- "alloy-sol-types",
- "derive_more",
  "reth-chainspec",
  "reth-consensus",
  "reth-ethereum-consensus",
- "reth-ethereum-forks",
  "reth-evm",
  "reth-evm-ethereum",
  "reth-primitives",
@@ -10940,6 +10936,7 @@ dependencies = [
  "revm",
  "revm-primitives",
  "rome-sdk",
+ "serde",
 ]
 
 [[package]]
@@ -12081,6 +12078,7 @@ dependencies = [
  "reth-provider",
  "reth-prune",
  "reth-revm",
+ "reth-rome-evm",
  "reth-rome-node",
  "reth-rpc",
  "reth-rpc-api",
@@ -12097,6 +12095,7 @@ dependencies = [
  "reth-trie-db",
  "rome-sdk",
  "serde_json",
+ "serde_yaml",
  "similar-asserts",
  "tempfile",
  "tokio",

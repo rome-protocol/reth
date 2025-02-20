@@ -1,20 +1,16 @@
 //! Ethereum block execution strategy.
 
-use core::str::FromStr;
-
-use crate::RomeEvmConfig;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{BlockHeader, Transaction};
-use alloy_eips::{eip6110, eip7685::Requests};
-use reth_chainspec::{ChainSpec, EthereumHardfork, EthereumHardforks, MAINNET};
+use alloy_eips::{eip7685::Requests};
+use reth_chainspec::{ChainSpec, EthereumHardforks};
 use reth_consensus::ConsensusError;
 use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::{
     execute::{
-        balance_increment_state, BasicBlockExecutorProvider, BlockExecutionError,
+        BasicBlockExecutorProvider, BlockExecutionError,
         BlockExecutionStrategy, BlockExecutionStrategyFactory, BlockValidationError, ExecuteOutput,
     },
-    state_change::post_block_balance_increments,
     system_calls::{OnStateHook, SystemCaller},
     ConfigureEvm, Database, Evm,
 };
@@ -26,15 +22,7 @@ use revm::db::State;
 use revm_primitives::{db::DatabaseCommit, ResultAndState};
 use rome_sdk::{rome_evm_client::Payer, rome_solana::types::SyncAtomicRpcClient, RomeConfig};
 use rome_sdk::rome_evm_client::tx::TxBuilder;
-use rome_sdk::Pubkey;
-use rome_sdk::rome_evm_client::PayerConfig;
-
-#[derive(Debug, Default, Clone)]
-pub struct RomeExecutionStrategyFactoryConfig {
-    rome_config: RomeConfig,
-    rome_evm_pubkey: Pubkey,
-    payers: Vec<PayerConfig>,
-}
+use crate::RomeEvmConfig;
 
 /// Factory for [`RomeExecutionStrategy`].
 #[derive(Clone)]
@@ -52,12 +40,12 @@ impl RomeExecutionStrategyFactory {
     pub async fn ethereum(
         chain_spec: Arc<ChainSpec>,
         evm_config: EthEvmConfig,
-        rome_execution_config: RomeExecutionStrategyFactoryConfig,
+        rome_evm_config: RomeEvmConfig,
     ) -> Self {
         Self::new(
             chain_spec.clone(),
             evm_config,
-            rome_execution_config,
+            rome_evm_config,
         ).await
     }
 }
@@ -67,11 +55,11 @@ impl<EvmConfig> RomeExecutionStrategyFactory<EvmConfig> {
     pub async fn new(
         chain_spec: Arc<ChainSpec>,
         evm_config: EvmConfig,
-        rome_execution_config: RomeExecutionStrategyFactoryConfig,
+        rome_evm_config: RomeEvmConfig,
     ) -> Self {
-        let payers = Payer::from_config_list(&rome_execution_config.payers).await.unwrap();
-        let sync_rpc_client: SyncAtomicRpcClient = Arc::new(rome_execution_config.rome_config.solana_config.clone().into());
-        let tx_builder = TxBuilder::new(chain_spec.chain_id(), rome_execution_config.rome_evm_pubkey, sync_rpc_client, payers);
+        let payers = Payer::from_config_list(&rome_evm_config.payers).await.unwrap();
+        let sync_rpc_client: SyncAtomicRpcClient = Arc::new(rome_evm_config.rome_config.solana_config.clone().into());
+        let tx_builder = TxBuilder::new(chain_spec.chain_id(), rome_evm_config.rome_evm_pubkey, sync_rpc_client, payers);
 
         Self { chain_spec, evm_config, tx_builder }
     }
@@ -251,13 +239,13 @@ impl RomeExecutorProvider {
     pub async fn ethereum(
         chain_spec: Arc<ChainSpec>,
         evm_config: EthEvmConfig,
-        rome_execution_config: RomeExecutionStrategyFactoryConfig,
+        rome_evm_config: RomeEvmConfig,
     ) -> BasicBlockExecutorProvider<RomeExecutionStrategyFactory> {
         BasicBlockExecutorProvider::new(
             RomeExecutionStrategyFactory::ethereum(
                 chain_spec,
                 evm_config,
-                rome_execution_config,
+                rome_evm_config,
             ).await,
         )
     }

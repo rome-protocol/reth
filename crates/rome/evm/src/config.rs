@@ -1,10 +1,10 @@
-use alloc::sync::Arc;
-use reth_chainspec::ChainSpec;
-use rome_sdk::{RomeConfig, rome_evm_client::resources::Payer};
+use rome_sdk::{RomeConfig, Pubkey};
+use rome_sdk::rome_evm_client::PayerConfig;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RomeEvmConfig {
-    pub rome: RomeConfig,
-    pub chain_spec: Arc<ChainSpec>,
-    pub payers: Vec<Payer>
+    pub rome_config: RomeConfig,
+    pub rome_evm_pubkey: Pubkey,
+    pub payers: Vec<PayerConfig>,
 }
-

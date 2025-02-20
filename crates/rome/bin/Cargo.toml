@@ -13,6 +13,7 @@ exclude.workspace = true
 reth-cli.workspace = true
 reth-ethereum-cli.workspace = true
 reth-rome-node = { workspace = true }
+reth-rome-evm = { workspace = true }
 reth-chainspec.workspace = true
 reth-config.workspace = true
 reth-primitives.workspace = true
@@ -77,6 +78,7 @@ tracing.workspace = true
 
 # io
 serde_json.workspace = true
+serde_yaml.workspace = true
 
 # async
 tokio = { workspace = true, features = ["sync", "macros", "time", "rt-multi-thread"] }
