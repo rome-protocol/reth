@@ -87,7 +87,7 @@ impl<C: ChainSpecParser<ChainSpec = ChainSpec>> Command<C> {
         let prune_modes = config.prune.clone().map(|prune| prune.segments).unwrap_or_default();
 
         let (tip_tx, tip_rx) = watch::channel(B256::ZERO);
-        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+        let rome_config = RomeConfig::load_json("./client-config.json".into()).await.unwrap(); // TODO
 
         let executor = EthExecutorProvider::ethereum(provider_factory.chain_spec(), rome_config).await;
 

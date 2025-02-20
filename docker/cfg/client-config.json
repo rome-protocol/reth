@@ -1,0 +1,13 @@
+{
+  "rpc_url": "https://apieu.devnet.romeprotocol.xyz",
+  "commitment": "confirmed",
+  "rollups": {
+      "1001": "RD2Gg7Lcnv62XmRHAzxh6fQQfMRzHtN5LeKPVBhYU5S"
+  },
+  "payers": [
+      {
+          "payer_keypair": "./test-account-keypair.json",
+          "number_holders": 64
+      }
+  ]
+}

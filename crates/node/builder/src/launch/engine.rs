@@ -96,7 +96,7 @@ where
             config,
         } = target;
         let NodeHooks { on_component_initialized, on_node_started, .. } = hooks;
-        let rome_config = RomeConfig::load_json("./".into()).await.unwrap(); // TODO
+        let rome_config = RomeConfig::load_json("./client-config.json".into()).await.unwrap(); // TODO
 
         // setup the launch context
         let ctx = ctx

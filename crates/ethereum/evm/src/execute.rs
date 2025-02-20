@@ -58,6 +58,7 @@ impl<EvmConfig> EthExecutionStrategyFactory<EvmConfig> {
         evm_config: EvmConfig,
         rome_config: RomeConfig,
     ) -> Self {
+        println!("rome_config {:?}", rome_config);
         let payers = Payer::from_config_list(&rome_config.payers).await.unwrap();
         let sync_rpc_client: SyncAtomicRpcClient =
             Arc::new(rome_config.solana_config.clone().into());
