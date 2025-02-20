@@ -10921,6 +10921,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "reth-rome-evm"
+version = "1.1.5"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "derive_more",
+ "reth-chainspec",
+ "reth-consensus",
+ "reth-ethereum-consensus",
+ "reth-ethereum-forks",
+ "reth-evm",
+ "reth-evm-ethereum",
+ "reth-primitives",
+ "reth-primitives-traits",
+ "revm",
+ "revm-primitives",
+ "rome-sdk",
+]
+
+[[package]]
 name = "reth-rome-node"
 version = "1.1.5"
 dependencies = [
@@ -10936,7 +10958,9 @@ dependencies = [
  "reth-network",
  "reth-node-api",
  "reth-node-builder",
+ "reth-node-ethereum",
  "reth-provider",
+ "reth-rome-evm",
  "reth-rpc",
  "reth-rpc-api",
  "reth-rpc-builder",
@@ -10946,6 +10970,7 @@ dependencies = [
  "reth-transaction-pool",
  "reth-trie-db",
  "revm",
+ "rome-sdk",
 ]
 
 [[package]]
